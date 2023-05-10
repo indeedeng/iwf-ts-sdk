@@ -19,6 +19,7 @@
         "doc": "docs"
     },
     "scripts": {
+        "code-gen": "./scripts/idl-code-gen.sh",
         "build": "tsc",
         "test": "jest --coverage",
         "test:watch": "jest --watch",
