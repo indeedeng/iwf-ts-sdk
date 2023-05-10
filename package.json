@@ -1,0 +1,36 @@
+{
+    "name": "iwf-typescript-sdk",
+    "private": true,
+    "keywords": [
+        "iwf",
+        "workflow"
+    ],
+    "homepage": "https://github.com/indeedeng/iwf-ts-sdk",
+    "bugs": {
+        "url": "https://github.com/indeedeng/iwf-ts-sdk/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/indeedeng/iwf-ts-sdk.git"
+    },
+    "license": "MIT",
+    "author": "Indeed Engineering",
+    "directories": {
+        "doc": "docs"
+    },
+    "scripts": {
+        "build": "tsc",
+        "test": "jest --coverage",
+        "test:watch": "jest --watch",
+        "test:ci": "jest --ci --coverage",
+        "lint": "tslint -c tslint.json 'src/**/*.ts'",
+        "lint:fix": "tslint -c tslint.json 'src/**/*.ts' --fix",
+        "prepublishOnly": "npm run build",
+        "preversion": "npm run lint && npm run test:ci",
+        "version": "npm run build && git add -A dist"
+    },
+    "devDependencies": {
+        "@types/axios": "^0.14.0"
+    },
+    "engines": {}
+}
