@@ -86,16 +86,10 @@ export interface CommandCombination {
 export interface CommandRequest {
     /**
      * 
-     * @type {DeciderTriggerType}
-     * @memberof CommandRequest
-     */
-    'deciderTriggerType'?: DeciderTriggerType;
-    /**
-     * 
      * @type {CommandWaitingType}
      * @memberof CommandRequest
      */
-    'commandWaitingType'?: CommandWaitingType;
+    'commandWaitingType': CommandWaitingType;
     /**
      * 
      * @type {Array<TimerCommand>}
@@ -212,21 +206,6 @@ export interface Context {
      */
     'attempt'?: number;
 }
-/**
- * 
- * @export
- * @enum {string}
- */
-
-export const DeciderTriggerType = {
-    AllCommandCompleted: 'ALL_COMMAND_COMPLETED',
-    AnyCommandCompleted: 'ANY_COMMAND_COMPLETED',
-    AnyCommandCombinationCompleted: 'ANY_COMMAND_COMBINATION_COMPLETED'
-} as const;
-
-export type DeciderTriggerType = typeof DeciderTriggerType[keyof typeof DeciderTriggerType];
-
-
 /**
  * 
  * @export
@@ -627,20 +606,6 @@ export interface SignalResult {
      */
     'signalValue'?: EncodedObject;
 }
-
-
-/**
- * 
- * @export
- * @enum {string}
- */
-
-export const StartApiFailurePolicy = {
-    FailWorkflowOnStartApiFailure: 'FAIL_WORKFLOW_ON_START_API_FAILURE',
-    ProceedToDecideOnStartApiFailure: 'PROCEED_TO_DECIDE_ON_START_API_FAILURE'
-} as const;
-
-export type StartApiFailurePolicy = typeof StartApiFailurePolicy[keyof typeof StartApiFailurePolicy];
 
 
 /**
@@ -1065,22 +1030,6 @@ export interface WorkflowGetSearchAttributesResponse {
 /**
  * 
  * @export
- * @enum {string}
- */
-
-export const WorkflowIDReusePolicy = {
-    AllowDuplicateFailedOnly: 'ALLOW_DUPLICATE_FAILED_ONLY',
-    AllowDuplicate: 'ALLOW_DUPLICATE',
-    RejectDuplicate: 'REJECT_DUPLICATE',
-    TerminateIfRunning: 'TERMINATE_IF_RUNNING'
-} as const;
-
-export type WorkflowIDReusePolicy = typeof WorkflowIDReusePolicy[keyof typeof WorkflowIDReusePolicy];
-
-
-/**
- * 
- * @export
  * @interface WorkflowResetRequest
  */
 export interface WorkflowResetRequest {
@@ -1403,10 +1352,10 @@ export interface WorkflowSkipTimerRequest {
 export interface WorkflowStartOptions {
     /**
      * 
-     * @type {WorkflowIDReusePolicy}
+     * @type {IDReusePolicy}
      * @memberof WorkflowStartOptions
      */
-    'workflowIDReusePolicy'?: WorkflowIDReusePolicy;
+    'idReusePolicy'?: IDReusePolicy;
     /**
      * 
      * @type {string}
@@ -1431,12 +1380,6 @@ export interface WorkflowStartOptions {
      * @memberof WorkflowStartOptions
      */
     'workflowConfigOverride'?: WorkflowConfig;
-    /**
-     * 
-     * @type {IDReusePolicy}
-     * @memberof WorkflowStartOptions
-     */
-    'idReusePolicy'?: IDReusePolicy;
 }
 
 
@@ -1511,98 +1454,98 @@ export interface WorkflowStartResponse {
 /**
  * 
  * @export
- * @interface WorkflowStateDecideRequest
+ * @interface WorkflowStateExecuteRequest
  */
-export interface WorkflowStateDecideRequest {
+export interface WorkflowStateExecuteRequest {
     /**
      * 
      * @type {Context}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'context': Context;
     /**
      * 
      * @type {string}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'workflowType': string;
     /**
      * 
      * @type {string}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'workflowStateId': string;
     /**
      * 
      * @type {EncodedObject}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'stateInput'?: EncodedObject;
     /**
      * 
      * @type {Array<SearchAttribute>}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'searchAttributes'?: Array<SearchAttribute>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'DataObjects'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'stateLocals'?: Array<KeyValue>;
     /**
      * 
      * @type {CommandResults}
-     * @memberof WorkflowStateDecideRequest
+     * @memberof WorkflowStateExecuteRequest
      */
     'commandResults'?: CommandResults;
 }
 /**
  * 
  * @export
- * @interface WorkflowStateDecideResponse
+ * @interface WorkflowStateExecuteResponse
  */
-export interface WorkflowStateDecideResponse {
+export interface WorkflowStateExecuteResponse {
     /**
      * 
      * @type {StateDecision}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'stateDecision'?: StateDecision;
     /**
      * 
      * @type {Array<SearchAttribute>}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'upsertSearchAttributes'?: Array<SearchAttribute>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'upsertDataObjects'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'recordEvents'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'upsertStateLocals'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<InterStateChannelPublishing>}
-     * @memberof WorkflowStateDecideResponse
+     * @memberof WorkflowStateExecuteResponse
      */
     'publishToInterStateChannel'?: Array<InterStateChannelPublishing>;
 }
@@ -1623,49 +1566,13 @@ export interface WorkflowStateOptions {
      * @type {PersistenceLoadingPolicy}
      * @memberof WorkflowStateOptions
      */
-    'dataObjectsLoadingPolicy'?: PersistenceLoadingPolicy;
+    'dataAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
     /**
      * 
      * @type {CommandCarryOverPolicy}
      * @memberof WorkflowStateOptions
      */
     'commandCarryOverPolicy'?: CommandCarryOverPolicy;
-    /**
-     * 
-     * @type {number}
-     * @memberof WorkflowStateOptions
-     */
-    'startApiTimeoutSeconds'?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof WorkflowStateOptions
-     */
-    'decideApiTimeoutSeconds'?: number;
-    /**
-     * 
-     * @type {RetryPolicy}
-     * @memberof WorkflowStateOptions
-     */
-    'startApiRetryPolicy'?: RetryPolicy;
-    /**
-     * 
-     * @type {RetryPolicy}
-     * @memberof WorkflowStateOptions
-     */
-    'decideApiRetryPolicy'?: RetryPolicy;
-    /**
-     * 
-     * @type {StartApiFailurePolicy}
-     * @memberof WorkflowStateOptions
-     */
-    'startApiFailurePolicy'?: StartApiFailurePolicy;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof WorkflowStateOptions
-     */
-    'skipStartApi'?: boolean;
     /**
      * 
      * @type {number}
@@ -1702,98 +1609,92 @@ export interface WorkflowStateOptions {
      * @memberof WorkflowStateOptions
      */
     'skipWaitUntil'?: boolean;
-    /**
-     * 
-     * @type {PersistenceLoadingPolicy}
-     * @memberof WorkflowStateOptions
-     */
-    'dataAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
 }
 
 
 /**
  * 
  * @export
- * @interface WorkflowStateStartRequest
+ * @interface WorkflowStateWaitUntilRequest
  */
-export interface WorkflowStateStartRequest {
+export interface WorkflowStateWaitUntilRequest {
     /**
      * 
      * @type {Context}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'context': Context;
     /**
      * 
      * @type {string}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'workflowType': string;
     /**
      * 
      * @type {string}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'workflowStateId': string;
     /**
      * 
      * @type {EncodedObject}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'stateInput'?: EncodedObject;
     /**
      * 
      * @type {Array<SearchAttribute>}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'searchAttributes'?: Array<SearchAttribute>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateStartRequest
+     * @memberof WorkflowStateWaitUntilRequest
      */
     'dataObjects'?: Array<KeyValue>;
 }
 /**
  * 
  * @export
- * @interface WorkflowStateStartResponse
+ * @interface WorkflowStateWaitUntilResponse
  */
-export interface WorkflowStateStartResponse {
+export interface WorkflowStateWaitUntilResponse {
     /**
      * 
      * @type {Array<SearchAttribute>}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'upsertSearchAttributes'?: Array<SearchAttribute>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'upsertDataObjects'?: Array<KeyValue>;
     /**
      * 
      * @type {CommandRequest}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'commandRequest'?: CommandRequest;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'upsertStateLocals'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<KeyValue>}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'recordEvents'?: Array<KeyValue>;
     /**
      * 
      * @type {Array<InterStateChannelPublishing>}
-     * @memberof WorkflowStateStartResponse
+     * @memberof WorkflowStateWaitUntilResponse
      */
     'publishToInterStateChannel'?: Array<InterStateChannelPublishing>;
 }
@@ -2339,12 +2240,12 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary for invoking WorkflowState.decide API
-         * @param {WorkflowStateDecideRequest} [workflowStateDecideRequest] 
+         * @summary for invoking WorkflowState.execute API
+         * @param {WorkflowStateExecuteRequest} [workflowStateExecuteRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WorkflowStateDecidePost: async (workflowStateDecideRequest?: WorkflowStateDecideRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WorkflowStateDecidePost: async (workflowStateExecuteRequest?: WorkflowStateExecuteRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/workflowState/decide`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2364,7 +2265,7 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(workflowStateDecideRequest, localVarRequestOptions, configuration)
+            localVarRequestOptions.data = serializeDataIfNeeded(workflowStateExecuteRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2373,12 +2274,12 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary for invoking WorkflowState.start API
-         * @param {WorkflowStateStartRequest} [workflowStateStartRequest] 
+         * @summary for invoking WorkflowState.waitUntil API
+         * @param {WorkflowStateWaitUntilRequest} [workflowStateWaitUntilRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WorkflowStateStartPost: async (workflowStateStartRequest?: WorkflowStateStartRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WorkflowStateStartPost: async (workflowStateWaitUntilRequest?: WorkflowStateWaitUntilRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/workflowState/start`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2398,7 +2299,7 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(workflowStateStartRequest, localVarRequestOptions, configuration)
+            localVarRequestOptions.data = serializeDataIfNeeded(workflowStateWaitUntilRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2640,24 +2541,24 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary for invoking WorkflowState.decide API
-         * @param {WorkflowStateDecideRequest} [workflowStateDecideRequest] 
+         * @summary for invoking WorkflowState.execute API
+         * @param {WorkflowStateExecuteRequest} [workflowStateExecuteRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WorkflowStateDecidePost(workflowStateDecideRequest?: WorkflowStateDecideRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowStateDecideResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowStateDecidePost(workflowStateDecideRequest, options);
+        async apiV1WorkflowStateDecidePost(workflowStateExecuteRequest?: WorkflowStateExecuteRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowStateExecuteResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowStateDecidePost(workflowStateExecuteRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
          * 
-         * @summary for invoking WorkflowState.start API
-         * @param {WorkflowStateStartRequest} [workflowStateStartRequest] 
+         * @summary for invoking WorkflowState.waitUntil API
+         * @param {WorkflowStateWaitUntilRequest} [workflowStateWaitUntilRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WorkflowStateStartPost(workflowStateStartRequest?: WorkflowStateStartRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowStateStartResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowStateStartPost(workflowStateStartRequest, options);
+        async apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest?: WorkflowStateWaitUntilRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowStateWaitUntilResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
@@ -2815,23 +2716,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
-         * @summary for invoking WorkflowState.decide API
-         * @param {WorkflowStateDecideRequest} [workflowStateDecideRequest] 
+         * @summary for invoking WorkflowState.execute API
+         * @param {WorkflowStateExecuteRequest} [workflowStateExecuteRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WorkflowStateDecidePost(workflowStateDecideRequest?: WorkflowStateDecideRequest, options?: any): AxiosPromise<WorkflowStateDecideResponse> {
-            return localVarFp.apiV1WorkflowStateDecidePost(workflowStateDecideRequest, options).then((request) => request(axios, basePath));
+        apiV1WorkflowStateDecidePost(workflowStateExecuteRequest?: WorkflowStateExecuteRequest, options?: any): AxiosPromise<WorkflowStateExecuteResponse> {
+            return localVarFp.apiV1WorkflowStateDecidePost(workflowStateExecuteRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
-         * @summary for invoking WorkflowState.start API
-         * @param {WorkflowStateStartRequest} [workflowStateStartRequest] 
+         * @summary for invoking WorkflowState.waitUntil API
+         * @param {WorkflowStateWaitUntilRequest} [workflowStateWaitUntilRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WorkflowStateStartPost(workflowStateStartRequest?: WorkflowStateStartRequest, options?: any): AxiosPromise<WorkflowStateStartResponse> {
-            return localVarFp.apiV1WorkflowStateStartPost(workflowStateStartRequest, options).then((request) => request(axios, basePath));
+        apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest?: WorkflowStateWaitUntilRequest, options?: any): AxiosPromise<WorkflowStateWaitUntilResponse> {
+            return localVarFp.apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3007,26 +2908,26 @@ export class DefaultApi extends BaseAPI {
 
     /**
      * 
-     * @summary for invoking WorkflowState.decide API
-     * @param {WorkflowStateDecideRequest} [workflowStateDecideRequest] 
+     * @summary for invoking WorkflowState.execute API
+     * @param {WorkflowStateExecuteRequest} [workflowStateExecuteRequest] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public apiV1WorkflowStateDecidePost(workflowStateDecideRequest?: WorkflowStateDecideRequest, options?: AxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).apiV1WorkflowStateDecidePost(workflowStateDecideRequest, options).then((request) => request(this.axios, this.basePath));
+    public apiV1WorkflowStateDecidePost(workflowStateExecuteRequest?: WorkflowStateExecuteRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowStateDecidePost(workflowStateExecuteRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
-     * @summary for invoking WorkflowState.start API
-     * @param {WorkflowStateStartRequest} [workflowStateStartRequest] 
+     * @summary for invoking WorkflowState.waitUntil API
+     * @param {WorkflowStateWaitUntilRequest} [workflowStateWaitUntilRequest] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public apiV1WorkflowStateStartPost(workflowStateStartRequest?: WorkflowStateStartRequest, options?: AxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).apiV1WorkflowStateStartPost(workflowStateStartRequest, options).then((request) => request(this.axios, this.basePath));
+    public apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest?: WorkflowStateWaitUntilRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowStateStartPost(workflowStateWaitUntilRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
