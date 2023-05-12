@@ -4,6 +4,14 @@ export class StateDef {
     private readonly workflowState: WorkflowState;
     private readonly canStartWorkflow: boolean;
 
+    public static startingState(workflowState: WorkflowState): StateDef {
+        return new StateDef(workflowState, true);
+    }
+
+    public static nonStartingState(workflowState: WorkflowState): StateDef {
+        return new StateDef(workflowState, false);
+    }
+
     constructor(workflowState: WorkflowState, canStartWorkflow: boolean) {
         this.workflowState = workflowState;
         this.canStartWorkflow = canStartWorkflow;
