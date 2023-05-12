@@ -12,15 +12,15 @@ export class CommandRequest {
         this.commandWaitingType = commandWaitingType;
     }
 
-    get Commands(): BaseCommand[] {
+    get getCommands(): BaseCommand[] {
         return this.commands;
     }
 
-    get CommandCombinations(): CommandCombination[] {
+    get getCommandCombinations(): CommandCombination[] {
         return this.commandCombinations;
     }
 
-    get CommandWaitingType(): CommandWaitingType {
+    get getCommandWaitingType(): CommandWaitingType {
         return this.commandWaitingType;
     }
 }

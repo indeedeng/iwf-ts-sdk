@@ -21,27 +21,27 @@ export class Context {
         this.attempt = attempt;
     }
 
-    get WorkflowStartTimestampSeconds(): number {
+    get getWorkflowStartTimestampSeconds(): number {
         return this.workflowStartTimestampSeconds;
     }
 
-    get StateExecutionId(): string | undefined {
+    get getStateExecutionId(): string | undefined {
         return this.stateExecutionId;
     }
     
-    get WorkflowRunId(): string {
+    get getWorkflowRunId(): string {
         return this.workflowRunId;
     }
 
-    get WorkflowId(): string {
+    get getWorkflowId(): string {
         return this.workflowId;
     }
 
-    get FirstAttemptTimestampSeconds(): number | undefined {
+    get getFirstAttemptTimestampSeconds(): number | undefined {
         return this.firstAttemptTimestampSeconds;
     }
 
-    get Attempt(): number | undefined {
+    get getAttempt(): number | undefined {
         return this.attempt;
     }
 }
