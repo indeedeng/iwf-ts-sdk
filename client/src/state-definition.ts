@@ -1,8 +1,8 @@
 import { WorkflowState } from "./workflow-state";
 
 export class StateDef {
-    private readonly workflowState: WorkflowState;
-    private readonly canStartWorkflow: boolean;
+    private readonly _workflowState: WorkflowState;
+    private readonly _canStartWorkflow: boolean;
 
     public static startingState(workflowState: WorkflowState): StateDef {
         return new StateDef(workflowState, true);
@@ -13,16 +13,16 @@ export class StateDef {
     }
 
     constructor(workflowState: WorkflowState, canStartWorkflow: boolean) {
-        this.workflowState = workflowState;
-        this.canStartWorkflow = canStartWorkflow;
+        this._workflowState = workflowState;
+        this._canStartWorkflow = canStartWorkflow;
     }
 
-    get getWorkflowState(): WorkflowState {
-        return this.workflowState;
+    get workflowState(): WorkflowState {
+        return this._workflowState;
     }
 
-    get getCanStartWorkflow(): boolean {
-        return this.canStartWorkflow;
+    get canStartWorkflow(): boolean {
+        return this._canStartWorkflow;
     }
 }
 

@@ -8,4 +8,5 @@ export interface WorkflowState {
     waitUntil(context: Context): Promise<CommandRequest>;
     // TODO: add persistence and communication
     execute(context: Context, input: any, commandResults: CommandResults): Promise<StateDecision>;
+    get stateId(): string;
 }
