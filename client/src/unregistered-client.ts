@@ -1,4 +1,4 @@
-import { Configuration, DefaultApi, WorkflowStartRequest } from "../../gen/iwfidl";
+import { Configuration, DefaultApi, EncodedObject, WorkflowStartRequest } from "../../gen/iwfidl";
 import { BASE_PATH } from "../../gen/iwfidl/base";
 import { ClientOptions } from "./client-options";
 
@@ -11,7 +11,7 @@ export class UnregisteredClient {
         this.defaultApi = new DefaultApi(undefined, "http://localhost:8801", undefined);
     }
 
-    public async startWorkflow(iwfWorkflowType: string, workflowId: string, startStateId: string, stateInput: any): Promise<string> {
+    public async startWorkflow(iwfWorkflowType: string, workflowId: string, startStateId: string, stateInput: EncodedObject): Promise<string> {
         const workflowStartRequest: WorkflowStartRequest = {
             iwfWorkflowType: iwfWorkflowType,
             workflowId: workflowId,

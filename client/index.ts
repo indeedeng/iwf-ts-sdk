@@ -6,6 +6,6 @@ const clientOptions = {
 }
 
 const client = new UnregisteredClient(clientOptions);
-client.startWorkflow("test", "test", "test", {}).then((workflowRunId) => {
+client.startWorkflow("basic", "test", "state1", {encoding: '', data : 'start'}).then((workflowRunId) => {
     console.log(workflowRunId);
 });

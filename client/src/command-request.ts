@@ -6,6 +6,8 @@ export class CommandRequest {
     private readonly commandCombinations: CommandCombination[];
     private readonly commandWaitingType: CommandWaitingType;
 
+    public static readonly EMPTY: CommandRequest = new CommandRequest([], [], CommandWaitingType.AllCompleted);
+
     constructor(commands: BaseCommand[], commandCombinations: CommandCombination[], commandWaitingType: CommandWaitingType) {
         this.commands = commands;
         this.commandCombinations = commandCombinations;
