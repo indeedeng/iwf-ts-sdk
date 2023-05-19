@@ -1,27 +1,23 @@
-import { ObjectWorkflow } from "./object-workflow";
-import { StateDef } from "./state-definition";
-
-export class Registry {
-    private readonly workflowStore: Map<string, ObjectWorkflow> = new Map();
-    private readonly workflowStateDefStore: Map<string, StateDef> = new Map();
-
-    private static readonly DELIMITER = '_';
-    
-    public addWorkflow(workflow: ObjectWorkflow): void {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Registry = void 0;
+class Registry {
+    constructor() {
+        this.workflowStore = new Map();
+        this.workflowStateDefStore = new Map();
+    }
+    addWorkflow(workflow) {
         this.registerWorkflow(workflow);
         this.registerWorkflowState(workflow);
     }
-
-    private registerWorkflow(workflow: ObjectWorkflow): void {
+    registerWorkflow(workflow) {
         const workflowType = workflow.getWorkflowType();
-
         if (this.workflowStore.has(workflowType)) {
             throw new Error(`Workflow type ${workflowType} already registered`);
         }
         this.workflowStore.set(workflowType, workflow);
     }
-
-    private registerWorkflowState(workflow: ObjectWorkflow): void {
+    registerWorkflowState(workflow) {
         const workflowType = workflow.getWorkflowType();
         for (const state of workflow.getWorkflowStates()) {
             const key = this.getStateDefKey(workflowType, state.workflowState.stateId);
@@ -29,19 +25,18 @@ export class Registry {
                 throw new Error(`Workflow state ${key} already registered`);
             }
         }
-
         workflow.getWorkflowStates().forEach(state => {
             const key = this.getStateDefKey(workflowType, state.workflowState.stateId);
             this.workflowStateDefStore.set(key, state);
         });
     }
-
-    private getStateDefKey(workflowType: string, stateId: string): string {
+    getStateDefKey(workflowType, stateId) {
         return `${workflowType}${Registry.DELIMITER}${stateId}`;
     }
-
-    public getWorkflowState(workflowType: string, stateId: string): StateDef | undefined {
+    getWorkflowState(workflowType, stateId) {
         const key = this.getStateDefKey(workflowType, stateId);
         return this.workflowStateDefStore.get(key);
     }
 }
+exports.Registry = Registry;
+Registry.DELIMITER = '_';

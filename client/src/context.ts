@@ -1,10 +1,10 @@
 export class Context {
-    private readonly workflowStartTimestampSeconds: number;
-    private readonly stateExecutionId?: string;
-    private readonly workflowRunId: string;
-    private readonly workflowId: string;
-    private readonly firstAttemptTimestampSeconds?: number;
-    private readonly attempt?: number;
+    private readonly _workflowStartTimestampSeconds: number;
+    private readonly _stateExecutionId?: string;
+    private readonly _workflowRunId: string;
+    private readonly _workflowId: string;
+    private readonly _firstAttemptTimestampSeconds?: number;
+    private readonly _attempt?: number;
 
     constructor(
         workflowStartTimestampSeconds: number,
@@ -13,35 +13,84 @@ export class Context {
         stateExecutionId?: string,
         firstAttemptTimestampSeconds?: number,
         attempt?: number){
-        this.workflowStartTimestampSeconds = workflowStartTimestampSeconds;
-        this.stateExecutionId = stateExecutionId;
-        this.workflowRunId = workflowRunId;
-        this.workflowId = workflowId;
-        this.firstAttemptTimestampSeconds = firstAttemptTimestampSeconds;
-        this.attempt = attempt;
+        this._workflowStartTimestampSeconds = workflowStartTimestampSeconds;
+        this._stateExecutionId = stateExecutionId;
+        this._workflowRunId = workflowRunId;
+        this._workflowId = workflowId;
+        this._firstAttemptTimestampSeconds = firstAttemptTimestampSeconds;
+        this._attempt = attempt;
     }
 
-    get getWorkflowStartTimestampSeconds(): number {
-        return this.workflowStartTimestampSeconds;
+    get workflowStartTimestampSeconds(): number {
+        return this._workflowStartTimestampSeconds;
     }
 
-    get getStateExecutionId(): string | undefined {
-        return this.stateExecutionId;
+    get stateExecutionId(): string | undefined {
+        return this._stateExecutionId;
     }
     
-    get getWorkflowRunId(): string {
-        return this.workflowRunId;
+    get workflowRunId(): string {
+        return this._workflowRunId;
     }
 
-    get getWorkflowId(): string {
-        return this.workflowId;
+    get workflowId(): string {
+        return this._workflowId;
     }
 
-    get getFirstAttemptTimestampSeconds(): number | undefined {
-        return this.firstAttemptTimestampSeconds;
+    get firstAttemptTimestampSeconds(): number | undefined {
+        return this._firstAttemptTimestampSeconds;
     }
 
-    get getAttempt(): number | undefined {
-        return this.attempt;
+    get gattempt(): number | undefined {
+        return this._attempt;
+    }
+}
+
+export class ContextBuilder {
+    private workflowStartTimestampSeconds: number = 0;
+    private stateExecutionId?: string;
+    private workflowRunId: string = "";
+    private workflowId: string = "";
+    private firstAttemptTimestampSeconds?: number;
+    private attempt?: number;
+
+    public setWorkflowStartTimestampSeconds(workflowStartTimestampSeconds: number): ContextBuilder {
+        this.workflowStartTimestampSeconds = workflowStartTimestampSeconds;
+        return this;
+    }
+
+    public setStateExecutionId(stateExecutionId: string | undefined): ContextBuilder {
+        this.stateExecutionId = stateExecutionId;
+        return this;
+    }
+
+    public setWorkflowRunId(workflowRunId: string): ContextBuilder {
+        this.workflowRunId = workflowRunId;
+        return this;
+    }
+
+    public setWorkflowId(workflowId: string): ContextBuilder {
+        this.workflowId = workflowId;
+        return this;
+    }
+
+    public setFirstAttemptTimestampSeconds(firstAttemptTimestampSeconds: number): ContextBuilder {
+        this.firstAttemptTimestampSeconds = firstAttemptTimestampSeconds;
+        return this;
+    }
+
+    public setAttempt(attempt: number): ContextBuilder {
+        this.attempt = attempt;
+        return this;
+    }
+
+    public build(): Context {
+        return new Context(
+            this.workflowStartTimestampSeconds,
+            this.workflowRunId,
+            this.workflowId,
+            this.stateExecutionId,
+            this.firstAttemptTimestampSeconds,
+            this.attempt);
     }
 }

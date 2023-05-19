@@ -6,6 +6,6 @@ const clientOptions = {
     workerUrl: "http://localhost:8802"
 };
 const client = new unregistered_client_1.UnregisteredClient(clientOptions);
-client.startWorkflow("test", "test", "test", {}).then((workflowRunId) => {
+client.startWorkflow("basic", "test", "state1", { encoding: '', data: 'start' }).then((workflowRunId) => {
     console.log(workflowRunId);
 });

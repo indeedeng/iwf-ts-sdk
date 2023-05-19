@@ -1,10 +1,35 @@
-import { StateMovement } from "./state-movement";
+import { EncodedObject } from "../../gen/iwfidl/api";
+import { StateMovement, StateMovementBuilder } from "./state-movement";
 
 export class StateDecision {
-    public readonly nextStates: StateMovement[];
+    public readonly _nextStates: StateMovement[];
+
+    public static nextState(stateId: string, input: EncodedObject): StateDecision {
+        return new StateDecision([StateMovement.createWithInput(stateId, input)]);
+    }
+
+    public static gracefulCompleteWorkflow(): StateDecision {
+        return new StateDecision([StateMovement.gracefulCompletingWorkflow()]);
+    }
+
+    public static gracefulCompleteWorkflowWithInput(stateInput: EncodedObject): StateDecision {
+        return new StateDecision([StateMovement.gracefulCompletingWorkflowWithInput(stateInput)]);
+    }
+
+    public static forceCompleteWorkflow(): StateDecision {
+        return new StateDecision([StateMovement.forceCompletingWorkflow()]);
+    }
+
+    public static forceFailWorkflow(): StateDecision {
+        return new StateDecision([StateMovement.forceFailingWorkflow()]);
+    }
 
     constructor(nextStates: StateMovement[]) {
-        this.nextStates = nextStates;
+        this._nextStates = nextStates;
+    }
+
+    get nextStates(): StateMovement[] {
+        return this._nextStates;
     }
 }
 
