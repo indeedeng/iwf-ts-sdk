@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc && node dist/worker/index.js",
+    "start": "tsc && node dist/test/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

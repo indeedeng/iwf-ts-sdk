@@ -1,11 +1,10 @@
 import express from 'express';
 import { Registry } from '../client/src/registry';
-import { EncodedObject, WorkflowStateWaitUntilRequest, WorkflowStateWaitUntilResponse, Context as IdlContext, WorkflowStateExecuteRequest } from '../gen/iwfidl';
+import { WorkflowStateWaitUntilRequest, WorkflowStateWaitUntilResponse, Context as IdlContext, WorkflowStateExecuteRequest } from '../gen/iwfidl';
 import { Context, ContextBuilder } from '../client/src/context';
 import { CommandRequestMapper } from '../client/src/mapper/command-request-mapper';
 import { CommandResultsMapper } from '../client/src/mapper/command-results-mapper';
 import { StateDecisionMapper } from '../client/src/mapper/state-decision-mapper';
-import { CommandResults } from '../client/src/command-results';
 import { BasicWorkflow } from './src/basic-workflow';
 
 const app = express();
