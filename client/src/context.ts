@@ -47,10 +47,10 @@ export class Context {
 }
 
 export class ContextBuilder {
-    private workflowStartTimestampSeconds: number = 0;
+    private workflowStartTimestampSeconds = 0;
     private stateExecutionId?: string;
-    private workflowRunId: string = "";
-    private workflowId: string = "";
+    private workflowRunId = "";
+    private workflowId = "";
     private firstAttemptTimestampSeconds?: number;
     private attempt?: number;
 

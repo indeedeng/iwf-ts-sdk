@@ -28,7 +28,7 @@ export class StateDef {
 
 export class StateDefBuilder {
     private workflowState: WorkflowState | undefined = undefined;
-    private canStartWorkflow: boolean = false;
+    private canStartWorkflow = false;
 
     public setWorkflowState(workflowState: WorkflowState): StateDefBuilder {
         this.workflowState = workflowState;

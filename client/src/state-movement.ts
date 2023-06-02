@@ -77,7 +77,7 @@ export class StateMovement {
 }
 
 export class StateMovementBuilder {
-    private stateId: string = "";
+    private stateId = "";
     private stateInput?: EncodedObject;
 
     public setStateId(stateId: string): StateMovementBuilder {
