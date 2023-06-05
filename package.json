@@ -25,6 +25,7 @@
         "test:watch": "jest --watch",
         "test:ci": "jest --ci --coverage",
         "lint": "eslint . --ext .ts",
+        "lint:fix": "eslint . --fix --ext .ts",
         "prepublishOnly": "npm run build",
         "preversion": "npm run lint && npm run test:ci",
         "version": "npm run build && git add -A dist"
