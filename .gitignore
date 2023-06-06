@@ -1,7 +1,5 @@
-/client/node_modules
-/client/dist
-
-/test/node_modules
-/test/dist
-
-/node_modules
+./client/node_modules
+./client/dist
+./test/node_modules
+./test/dist
+./node_modules
