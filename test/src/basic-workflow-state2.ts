@@ -1,8 +1,8 @@
-import { CommandRequest } from "../../client/src/command-request";
-import { CommandResults } from "../../client/src/command-results";
-import { Context } from "../../client/src/context";
-import { StateDecision } from "../../client/src/state-decision";
-import { WorkflowState } from "../../client/src/workflow-state";
+import { CommandRequest } from "../../core/src/command-request";
+import { CommandResults } from "../../core/src/command-results";
+import { Context } from "../../core/src/context";
+import { StateDecision } from "../../core/src/state-decision";
+import { WorkflowState } from "../../core/src/workflow-state";
 import { EncodedObject } from "../../gen/iwfidl";
 import util from 'util'
 

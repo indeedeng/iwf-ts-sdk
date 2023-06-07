@@ -1,5 +1,5 @@
-import { ObjectWorkflow } from "../../client/src/object-workflow";
-import { StateDefBuilder } from "../../client/src/state-definition";
+import { ObjectWorkflow } from "../../core/src/object-workflow";
+import { StateDefBuilder } from "../../core/src/state-definition";
 import { BasicWorkflowState1 } from "./basic-workflow-state1";
 import { BasicWorkflowState2 } from "./basic-workflow-state2";
 
