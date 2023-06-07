@@ -1,11 +1,11 @@
 {
-  "name": "client",
+  "name": "core",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc && node dist/client/index.js",
+    "start": "tsc && node dist/core/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
