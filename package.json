@@ -24,14 +24,17 @@
         "test": "jest --coverage",
         "test:watch": "jest --watch",
         "test:ci": "jest --ci --coverage",
-        "lint": "tslint -c tslint.json 'src/**/*.ts'",
-        "lint:fix": "tslint -c tslint.json 'src/**/*.ts' --fix",
+        "lint": "eslint . --ext .ts",
+        "lint:fix": "eslint . --fix --ext .ts",
         "prepublishOnly": "npm run build",
         "preversion": "npm run lint && npm run test:ci",
         "version": "npm run build && git add -A dist"
     },
     "devDependencies": {
-        "@types/axios": "^0.14.0"
+        "@types/axios": "^0.14.0",
+        "@typescript-eslint/eslint-plugin": "^5.59.8",
+        "@typescript-eslint/parser": "^5.59.8",
+        "eslint": "^8.41.0"
     },
     "engines": {}
 }
