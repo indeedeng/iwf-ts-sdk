@@ -1,5 +1,4 @@
-import { Configuration, DefaultApi, EncodedObject, WorkflowStartRequest } from "../../gen/iwfidl";
-import { BASE_PATH } from "../../gen/iwfidl/base";
+import { DefaultApi, EncodedObject, WorkflowStartRequest } from "../../gen/iwfidl";
 import { ClientOptions } from "./client-options";
 
 export class UnregisteredClient {

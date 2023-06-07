@@ -1,5 +1,5 @@
 /node_modules
-/core/dist
-/core/node_modules
+/iwf/dist
+/iwf/node_modules
 /test/dist
 /test/node_modules
