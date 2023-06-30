@@ -1,5 +1,5 @@
 import { isValidCron } from "cron-validator";
-import { DefaultApi, EncodedObject, WorkflowStartRequest, WorkflowStartOptions } from "../../gen/iwfidl";
+import { DefaultApi, EncodedObject, WorkflowStartRequest, WorkflowStartOptions, WorkflowGetResponse, StateCompletionOutput } from "../../gen/iwfidl";
 import { ClientOptions } from "./client-options";
 import { UnregisteredWorkflowOptions } from "./unregistered-workflow-options";
 import { Client } from "./client";
@@ -77,6 +77,49 @@ export class UnregisteredClient {
 
         return this.defaultApi.apiV1WorkflowStartPost(workflowStartRequest).then((response) => {
             return response.data.workflowRunId!;
+        });
+    }
+
+    public async getSimpleWorkflowResultWithWait(workflowId: string, workflowRunId: string): Promise<EncodedObject | null> {
+        let workflowGetResponse: WorkflowGetResponse;
+        try {
+            workflowGetResponse = await this.defaultApi.apiV1WorkflowGetWithWaitPost(
+                {
+                    workflowId: workflowId,
+                    workflowRunId: workflowRunId,
+                }
+            ).then((response) => {
+                return response.data;
+            });
+        } catch (e) {
+            throw new Error(`Failed to get workflow result: ${e}`);
+        }
+
+        if (workflowGetResponse.workflowStatus != "COMPLETED") {
+            throw new Error(`Workflow ${workflowId} run ${workflowRunId} did not complete successfully`);
+        }
+
+        if (workflowGetResponse.results == null || workflowGetResponse.results.length == 0) {
+            return new Promise((resolve, reject) => {
+                resolve(null);
+            });
+        }
+
+        const checkErrorMessage = "this workflow should have one or zero state output for using this API";
+        const filteredResults = workflowGetResponse.results.filter((result) => result.completedStateOutput != null);
+        if (workflowGetResponse.results.length != 1 && filteredResults.length != 1) {
+            throw new Error(checkErrorMessage + ", found " + workflowGetResponse.results.length + ", after filtered NULL: " + filteredResults.length);
+        }
+
+        let output: StateCompletionOutput;
+        if (filteredResults.length == 1) {
+            output = filteredResults[0]!;
+        } else {
+            output = workflowGetResponse.results[0]!;
+        }
+
+        return new Promise((resolve, reject) => {
+            resolve(output.completedStateOutput!);
         });
     }
 }

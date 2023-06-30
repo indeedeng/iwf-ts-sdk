@@ -7,13 +7,16 @@ const clientOptions = {
 }
 
 const client = new UnregisteredClient(clientOptions);
-client.startWorkflow(
+const workflowRunId = client.startWorkflow(
     "basic", 
-    "test", 
+    "testGet", 
     "state1", 
     {encoding: '', data : 'start'}, 
     101,
-    UnregisteredWorkflowOptionsBuilder.newBuilder().setCronSchedule("*/1 * * * *").build())
+    UnregisteredWorkflowOptionsBuilder.newBuilder().build())
     .then((workflowRunId) => {
-    console.log(workflowRunId);
-});
+        console.log(workflowRunId);
+        return client.getSimpleWorkflowResultWithWait("testGet", workflowRunId)
+    }).then((result) => {
+        console.log(result);
+    });
