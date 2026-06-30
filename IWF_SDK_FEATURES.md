@@ -323,9 +323,9 @@ Legend: ✅ = present · 🟡 = partial / stubbed · ❌ = missing · ⚠️ = p
 | RPC persistence loading/locking + bypass cache | ✅ | ✅ | ⚠️ | 🟡 (loading wired; bypass-cache flag not sent) |
 | State options (timeout/retry/failure policy) | ✅ | ✅ | ✅ | ✅ |
 | Dynamic per-movement state-options override | ✅ | ✅ | — | ✅ |
-| Workflow start options (ID reuse, cron, delay, retry) | ✅ | ✅ | ✅ | 🟡 (no delay — IDL gap) |
-| Initial search/data attributes | ✅ | ✅ | ⚠️ (search only) | 🟡 (search only — IDL gap) |
-| Wait-for-completion-state on start | ✅ | ✅ | — | ❌ |
+| Workflow start options (ID reuse, cron, delay, retry) | ✅ | ✅ | ✅ | ✅ |
+| Initial search/data attributes | ✅ | ✅ | ⚠️ (search only) | ✅ |
+| Wait-for-completion-state on start | ✅ | ✅ | — | ✅ |
 | Client: start / stop / describe / reset | ✅ | ✅ | ✅ | ✅ |
 | Client: get/set data & search attributes | ✅ | ✅ | ✅ | ✅ |
 | Client: signal | ✅ | ✅ | ✅ | ✅ |
@@ -341,10 +341,10 @@ Legend: ✅ = present · 🟡 = partial / stubbed · ❌ = missing · ⚠️ = p
 | WorkerService (WaitUntil/Execute/RPC handlers) | ✅ | ✅ | ✅ | ✅ |
 | Registry | ✅ | ✅ | ✅ | ✅ |
 
-**TS status summary:** 34/40 ✅ · 4/40 🟡 · 2/40 ❌ (~88%). Remaining gaps: channel-size queries (❌),
-wait-for-completion-state on start (❌), prefix-based dynamic fields lookup (🟡), RPC bypass-cache
-flag not sent on the request (🟡). The two `🟡 (IDL gap)` rows — start delay and initial *data*
-attributes — are limited by this IDL version, not the SDK layer.
+**TS status summary:** 37/40 ✅ · 2/40 🟡 · 1/40 ❌ (~93%). Remaining gaps: channel-size queries (❌),
+prefix-based dynamic fields lookup (🟡), and the RPC bypass-cache flag not sent on the request (🟡).
+Start delay, initial *data* attributes, and wait-for-completion-state on start are all supported by
+the `1.0.0-121` IDL and are now wired through `WorkflowOptions` → `startWorkflow`.
 
 ### Notes for the TypeScript SDK
 

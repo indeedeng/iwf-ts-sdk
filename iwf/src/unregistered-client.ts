@@ -70,9 +70,24 @@ export class UnregisteredClient {
             if (options.workflowConfigOverride) {
                 startOptions.workflowConfigOverride = options.workflowConfigOverride;
             }
-            const initialSas = options.initialSearchAttributes.asMutable().toArray();
+            if (options.startDelaySeconds !== undefined) {
+                startOptions.workflowStartDelaySeconds = options.startDelaySeconds;
+            }
+            const initialSas = options.initialSearchAttributes.toArray();
             if (initialSas.length > 0) {
                 startOptions.searchAttributes = initialSas;
+            }
+            const initialDas = options.initialDataAttributes.toArray();
+            if (initialDas.length > 0) {
+                startOptions.dataAttributes = initialDas;
+            }
+            const waitForStateIds = options.waitForCompletionStateIds.toArray();
+            if (waitForStateIds.length > 0) {
+                request.waitForCompletionStateIds = waitForStateIds;
+            }
+            const waitForStateExecutionIds = options.waitForCompletionStateExecutionIds.toArray();
+            if (waitForStateExecutionIds.length > 0) {
+                request.waitForCompletionStateExecutionIds = waitForStateExecutionIds;
             }
             if (options.workflowStateOptions) {
                 request.stateOptions = options.workflowStateOptions;

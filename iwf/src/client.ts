@@ -65,6 +65,9 @@ export class Client {
         if (options?.cronSchedule) {
             builder.setCronSchedule(options.cronSchedule);
         }
+        if (options?.startDelaySeconds !== undefined) {
+            builder.setStartDelaySeconds(options.startDelaySeconds);
+        }
         if (options?.workflowRetryPolicy) {
             builder.setWorkflowRetryPolicy(options.workflowRetryPolicy);
         }
@@ -73,6 +76,18 @@ export class Client {
         }
         if (options?.initialSearchAttributes) {
             builder.addAllInitialSearchAttributes(options.initialSearchAttributes);
+        }
+        if (options?.initialDataAttributes) {
+            const dataAttributes: KeyValue[] = Array.from(options.initialDataAttributes.entries()).map(
+                ([key, value]) => ({ key, value: this.encoder.encode(value) }),
+            );
+            builder.addAllInitialDataAttributes(dataAttributes);
+        }
+        if (options?.waitForCompletionStateIds) {
+            builder.addAllWaitForCompletionStateIds(options.waitForCompletionStateIds);
+        }
+        if (options?.waitForCompletionStateExecutionIds) {
+            builder.addAllWaitForCompletionStateExecutionIds(options.waitForCompletionStateExecutionIds);
         }
 
         return this.unregistered.startWorkflow(
