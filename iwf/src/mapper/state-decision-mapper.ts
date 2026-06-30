@@ -1,13 +1,13 @@
 import { StateDecision } from "../state-decision";
 import { StateDecision as IdlStateDecision, WorkflowConditionalClose } from "../../../gen/iwfidl/api";
-import { SkipWaitUntilResolver, StateMovementMapper } from "./state-movement-mapper";
+import { StateResolver, StateMovementMapper } from "./state-movement-mapper";
 import { ObjectEncoder } from "../object-encoder";
 
 export class StateDecisionMapper {
     public static toIdl(
         stateDecision: StateDecision,
         encoder: ObjectEncoder,
-        resolveSkipWaitUntil: SkipWaitUntilResolver,
+        resolveState: StateResolver,
     ): IdlStateDecision {
         let conditionalClose: WorkflowConditionalClose | undefined;
         if (stateDecision.conditionalClose) {
@@ -20,7 +20,7 @@ export class StateDecisionMapper {
 
         return {
             nextStates: stateDecision.nextStates.map((movement) =>
-                StateMovementMapper.toIdl(movement, encoder, resolveSkipWaitUntil),
+                StateMovementMapper.toIdl(movement, encoder, resolveState),
             ),
             conditionalClose,
         };

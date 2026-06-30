@@ -15,13 +15,12 @@ import { ContextMapper } from "./mapper/context-mapper";
 import { CommandRequestMapper } from "./mapper/command-request-mapper";
 import { CommandResultsMapper } from "./mapper/command-results-mapper";
 import { StateDecisionMapper } from "./mapper/state-decision-mapper";
-import { SkipWaitUntilResolver } from "./mapper/state-movement-mapper";
+import { StateResolver } from "./mapper/state-movement-mapper";
 import { ChannelInfoMap, CommunicationImpl } from "./communication/communication";
 import { PersistenceImpl, keyValuesToMap, searchAttributesToMap } from "./persistence/persistence";
 import { CommandRequest } from "./command-request";
 import { InternalChannelCommand } from "./command/internal-channel-command";
 import { StateDecision } from "./state-decision";
-import { shouldSkipWaitUntil } from "./workflow-state";
 import { NotRegisteredError, WorkflowDefinitionError } from "./errors";
 
 /** Bundle of what a single state/RPC invocation reads and writes. */
@@ -105,7 +104,7 @@ export class WorkerService {
         }
 
         return {
-            stateDecision: StateDecisionMapper.toIdl(decision, this.encoder, this.skipResolver(request.workflowType)),
+            stateDecision: StateDecisionMapper.toIdl(decision, this.encoder, this.stateResolver(request.workflowType)),
             upsertSearchAttributes: io.persistence.getUpsertSearchAttributes(),
             upsertDataObjects: io.persistence.getUpsertDataAttributes(),
             upsertStateLocals: io.persistence.getUpsertStateLocals(),
@@ -137,7 +136,7 @@ export class WorkerService {
         const triggered = io.communication.getToTriggerStateMovements();
         const stateDecision =
             triggered.length > 0
-                ? StateDecisionMapper.toIdl(new StateDecision(triggered), this.encoder, this.skipResolver(request.workflowType))
+                ? StateDecisionMapper.toIdl(new StateDecision(triggered), this.encoder, this.stateResolver(request.workflowType))
                 : undefined;
 
         return {
@@ -187,10 +186,7 @@ export class WorkerService {
         return { persistence, communication };
     }
 
-    private skipResolver(workflowType: string): SkipWaitUntilResolver {
-        return (stateId: string) => {
-            const stateDef = this.registry.getWorkflowState(workflowType, stateId);
-            return stateDef === undefined ? undefined : shouldSkipWaitUntil(stateDef.workflowState);
-        };
+    private stateResolver(workflowType: string): StateResolver {
+        return (stateId: string) => this.registry.getWorkflowState(workflowType, stateId)?.workflowState;
     }
 }

@@ -1,6 +1,6 @@
 import { WorkflowStateOptions } from "../src/workflow-state-options";
 import { WorkflowDefinitionError } from "../src/errors";
-import { ExecuteApiFailurePolicy, PersistenceLoadingType } from "../../gen/iwfidl";
+import { ExecuteApiFailurePolicy, PersistenceLoadingType, WaitUntilApiFailurePolicy } from "../../gen/iwfidl";
 
 describe("WorkflowStateOptions", () => {
     it("emits the per-API loading policies and execute-failure recovery state", () => {
@@ -35,5 +35,21 @@ describe("WorkflowStateOptions", () => {
         opts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
         opts.executeApiRetryPolicy = { maximumAttempts: 3 };
         expect(() => opts.toIdl()).toThrow(/executeApiFailureProceedStateId is not set/);
+    });
+
+    it("throws when execute-failure proceed has a retry policy with no attempt bound", () => {
+        const opts = new WorkflowStateOptions();
+        opts.executeApiFailureProceedStateId = "Recovery";
+        opts.executeApiRetryPolicy = { initialIntervalSeconds: 1 }; // no maximumAttempts / duration
+        expect(() => opts.toIdl()).toThrow(/maximumAttempts/);
+    });
+
+    it("requires a bounded retry policy for waitUntil PROCEED_ON_FAILURE", () => {
+        const opts = new WorkflowStateOptions();
+        opts.waitUntilApiFailurePolicy = WaitUntilApiFailurePolicy.ProceedOnFailure;
+        expect(() => opts.toIdl()).toThrow(/PROCEED_ON_FAILURE requires/);
+
+        opts.waitUntilApiRetryPolicy = { maximumAttempts: 2 };
+        expect(() => opts.toIdl()).not.toThrow();
     });
 });

@@ -438,23 +438,24 @@ remains is the ergonomic layer (intentional, idiomatic differences) plus one min
   precision loss past 2^53); datetime accessors now document and validate the real accepted formats
   (Unix epoch-seconds or RFC3339 / Go layout `2006-01-02T15:04:05-07:00`).
 
-### Open follow-up (AUTOPLAT-1850)
+### Resolved (AUTOPLAT-1850)
 A second full re-audit (2026-06-30, serialization excluded) surfaced these behavioral differences,
-tracked for resolution under AUTOPLAT-1850:
-- **High — `getStateOptions()` is never applied.** Declared on `WorkflowState` but consulted nowhere;
-  a state's options only reach the server via the `StateMovement` targeting it (or the start request),
-  so options declared via `getStateOptions()` have no effect unless repeated on every movement. Java's
-  movement mapper uses the registered state's options as the base. Needs the registry threaded into the
-  movement mapper and start path.
-- **Medium — proceed-state recovery incomplete**: no `skipWaitUntil` auto-fill on the recovery state
-  and no rejection of nested failure policies (Java's `autoFillFailureProceedingStateOptions` does both).
-- **Medium — no `waitUntilApiFailurePolicy` validation** (Java requires a retry policy with an attempt
-  bound for `PROCEED_ON_FAILURE`; TS validates only the execute side, and that check doesn't require the bound).
-- **Medium — no start-time validation of initial search/data attributes** (Java rejects unregistered/mis-typed keys).
-- **Medium — `getWorkflowDataAttributes(keys)` doesn't apply caching** (no workflow context; Java always honors `enableCaching`).
-- **Medium — `Context.childWorkflowRequestId` missing** (Java sets `runId-stateExecutionId` for child-workflow idempotency).
-- **Medium — RPC loading-policy/timeout defaults** sent as `undefined` (→ server default) vs Java's explicit
-  defaults; no first-class `partialLoadingKeys`/`lockingKeys` on `RpcOptions`.
+since closed under AUTOPLAT-1850:
+- **High — `getStateOptions()` now applied.** The movement mapper and start path resolve a target
+  state's declared options as the base (per-movement override wins), then apply `skipWaitUntil` —
+  so options declared via `getStateOptions()` take effect without repeating them on every movement.
+- **Proceed-state recovery completed**: the recovery state's `skipWaitUntil` is auto-filled and nested
+  failure policies are rejected (mirrors Java's `autoFillFailureProceedingStateOptions`).
+- **`waitUntilApiFailurePolicy` validation added** — `PROCEED_ON_FAILURE` now requires a retry policy
+  with an attempt bound, and the execute-side check requires the bound too.
+- **Initial search/data attributes validated on start** — unregistered/mis-typed keys are rejected.
+- **`getWorkflowDataAttributes` now applies caching** — it takes the workflow (like the search-attribute
+  reads) and sets `useMemoForDataAttributes` from `enableCaching` for by-key and all-key reads.
+- **`Context.childWorkflowRequestId` added** (`runId-stateExecutionId`).
+- **RPC loading-policy/timeout defaults** now match Java: `timeoutSeconds` defaults to `0` and the
+  loading policies default to `ALL_WITHOUT_LOCKING` when unset. (`partialLoadingKeys`/`lockingKeys` are
+  expressible via the `PersistenceLoadingPolicy` object on `RpcOptions` — more flexible than Java's flat
+  annotation fields — so no separate fields were needed.)
 
 ### Not applicable by design
 - **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
@@ -485,4 +486,4 @@ From the 2026-06-30 re-audit; intentionally left as-is:
 ---
 
 *Generated from analysis of `iwf-java-sdk`, `iwf-python-sdk`, and `iwf-golang-sdk` source on 2026-06-24.
-Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847, re-audit follow-ups tracked in AUTOPLAT-1850.*
+Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847 and AUTOPLAT-1850.*

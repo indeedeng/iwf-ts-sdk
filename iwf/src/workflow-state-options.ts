@@ -66,23 +66,40 @@ export class WorkflowStateOptions {
         };
     }
 
-    /** Mirrors the Java SDK's check: a recovery state requires a retry policy and a target state. */
+    /**
+     * Mirrors the Java SDK's checks: proceeding on failure (waitUntil or execute) is only meaningful
+     * once retries are exhausted, so it requires a retry policy with a bounded number of attempts;
+     * the execute side additionally requires the recovery state id.
+     */
     private validate(): void {
-        const proceeding =
+        const executeProceeding =
             this.executeApiFailurePolicy === ExecuteApiFailurePolicy.ProceedToConfiguredState ||
             this.executeApiFailureProceedStateId !== undefined;
-        if (!proceeding) {
-            return;
+        if (executeProceeding) {
+            if (this.executeApiFailureProceedStateId === undefined) {
+                throw new WorkflowDefinitionError(
+                    "executeApiFailurePolicy is PROCEED_TO_CONFIGURED_STATE but executeApiFailureProceedStateId is not set",
+                );
+            }
+            if (!WorkflowStateOptions.hasBoundedRetry(this.executeApiRetryPolicy)) {
+                throw new WorkflowDefinitionError(
+                    "executeApiFailureProceedStateId requires an executeApiRetryPolicy with maximumAttempts or " +
+                        "maximumAttemptsDurationSeconds (the proceed-state is only reached after retries are exhausted)",
+                );
+            }
         }
-        if (this.executeApiFailureProceedStateId === undefined) {
-            throw new WorkflowDefinitionError(
-                "executeApiFailurePolicy is PROCEED_TO_CONFIGURED_STATE but executeApiFailureProceedStateId is not set",
-            );
+
+        if (this.waitUntilApiFailurePolicy === WaitUntilApiFailurePolicy.ProceedOnFailure) {
+            if (!WorkflowStateOptions.hasBoundedRetry(this.waitUntilApiRetryPolicy)) {
+                throw new WorkflowDefinitionError(
+                    "waitUntilApiFailurePolicy PROCEED_ON_FAILURE requires a waitUntilApiRetryPolicy with " +
+                        "maximumAttempts or maximumAttemptsDurationSeconds",
+                );
+            }
         }
-        if (this.executeApiRetryPolicy === undefined) {
-            throw new WorkflowDefinitionError(
-                "executeApiFailureProceedStateId requires an executeApiRetryPolicy (the proceed-state is only reached after retries are exhausted)",
-            );
-        }
+    }
+
+    private static hasBoundedRetry(retry?: RetryPolicy): boolean {
+        return retry !== undefined && (retry.maximumAttempts !== undefined || retry.maximumAttemptsDurationSeconds !== undefined);
     }
 }

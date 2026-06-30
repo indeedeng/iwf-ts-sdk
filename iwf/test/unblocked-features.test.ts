@@ -2,7 +2,7 @@ import { StateDecision } from "../src/state-decision";
 import { StateDecisionMapper } from "../src/mapper/state-decision-mapper";
 import { Client } from "../src/client";
 import { defaultObjectEncoder } from "../src/object-encoder";
-import { SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
+import { PersistenceLoadingType, SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
 import { UnregisteredClient } from "../src/unregistered-client";
 import { WorkflowUncompletedError } from "../src/errors";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
@@ -183,6 +183,18 @@ describe("RPC bypassCachingForStrongConsistency wiring", () => {
         await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "cached");
         expect(captured()?.searchAttributes).toEqual([{ key: "score", valueType: SearchAttributeValueType.Int }]);
     });
+
+    it("defaults RPC timeout and loading policies like Java when unset", async () => {
+        const { client, captured } = buildClient();
+        await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "cached");
+        expect(captured()?.timeoutSeconds).toBe(0);
+        expect(captured()?.dataAttributesLoadingPolicy?.persistenceLoadingType).toBe(
+            PersistenceLoadingType.AllWithoutLocking,
+        );
+        expect(captured()?.searchAttributesLoadingPolicy?.persistenceLoadingType).toBe(
+            PersistenceLoadingType.AllWithoutLocking,
+        );
+    });
 });
 
 describe("useMemoForDataAttributes on start and reads (caching enabled)", () => {
@@ -208,6 +220,12 @@ describe("useMemoForDataAttributes on start and reads (caching enabled)", () => 
         const { client, unregistered } = buildClient();
         await client.getAllWorkflowDataAttributes(new CachingRpcWorkflow(), "wf-1");
         // 4th positional arg of unregistered.getWorkflowDataAttributes is useMemoForDataAttributes
+        expect(unregistered.getWorkflowDataAttributes.mock.calls[0][3]).toBe(true);
+    });
+
+    it("reads data attributes by key from the memo too", async () => {
+        const { client, unregistered } = buildClient();
+        await client.getWorkflowDataAttributes(new CachingRpcWorkflow(), "wf-1", ["k"]);
         expect(unregistered.getWorkflowDataAttributes.mock.calls[0][3]).toBe(true);
     });
 });
@@ -258,5 +276,43 @@ describe("reset skipUpdateReapply", () => {
         await client.resetWorkflow("wf-1", { ...resetToBeginning("redo"), skipUpdateReapply: true });
 
         expect(captured?.skipUpdateReapply).toBe(true);
+    });
+});
+
+describe("start-time validation of initial attributes", () => {
+    const newClient = (): Client => {
+        const registry = new Registry();
+        registry.addWorkflow(new CachingRpcWorkflow());
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (client as any).unregistered.startWorkflow = jest.fn(() => Promise.resolve("run-1"));
+        return client;
+    };
+
+    it("accepts a declared initial search attribute", async () => {
+        const client = newClient();
+        await expect(
+            client.startWorkflow(new CachingRpcWorkflow(), "wf-1", 60, undefined, {
+                initialSearchAttributes: [Client.buildSearchAttribute("score", SearchAttributeValueType.Int, 1)],
+            }),
+        ).resolves.toBe("run-1");
+    });
+
+    it("rejects an undeclared initial search attribute", async () => {
+        const client = newClient();
+        await expect(
+            client.startWorkflow(new CachingRpcWorkflow(), "wf-1", 60, undefined, {
+                initialSearchAttributes: [Client.buildSearchAttribute("bogus", SearchAttributeValueType.Int, 1)],
+            }),
+        ).rejects.toThrow(/not declared/);
+    });
+
+    it("rejects an undeclared initial data attribute", async () => {
+        const client = newClient();
+        await expect(
+            client.startWorkflow(new CachingRpcWorkflow(), "wf-1", 60, undefined, {
+                initialDataAttributes: new Map([["nope", 1]]),
+            }),
+        ).rejects.toThrow(/not declared/);
     });
 });

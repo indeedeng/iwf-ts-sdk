@@ -10,6 +10,11 @@ export class ContextMapper {
             .setStateExecutionId(idlContext.stateExecutionId)
             .setWorkflowType(workflowType);
 
+        if (idlContext.stateExecutionId !== undefined) {
+            // Stable id for idempotent child-workflow starts (matches the Java SDK).
+            builder.setChildWorkflowRequestId(`${idlContext.workflowRunId}-${idlContext.stateExecutionId}`);
+        }
+
         if (idlContext.attempt !== undefined) {
             builder.setAttempt(idlContext.attempt);
         }

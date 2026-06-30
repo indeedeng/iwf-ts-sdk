@@ -1,6 +1,8 @@
 import {
     InterStateChannelPublishing,
     KeyValue,
+    PersistenceLoadingPolicy,
+    PersistenceLoadingType,
     SearchAttribute,
     SearchAttributeKeyAndType,
     SearchAttributeValueType,
@@ -16,7 +18,7 @@ import { UnregisteredClient } from "./unregistered-client";
 import { UnregisteredWorkflowOptionsBuilder } from "./unregistered-workflow-options";
 import { ObjectWorkflow, getPersistenceOptions } from "./object-workflow";
 import { WorkflowOptions } from "./workflow-options";
-import { shouldSkipWaitUntil } from "./workflow-state";
+import { StateMovementMapper, StateResolver } from "./mapper/state-movement-mapper";
 import { ResetWorkflowOptions, StopWorkflowOptions } from "./workflow-operation-options";
 import { InvalidArgumentError } from "./errors";
 
@@ -56,9 +58,19 @@ export class Client {
             throw new InvalidArgumentError(`Workflow ${workflowType} has no starting state to start from`);
         }
 
-        const builder = new UnregisteredWorkflowOptionsBuilder().setWorkflowStateOptions({
-            skipWaitUntil: shouldSkipWaitUntil(startState.workflowState),
-        });
+        // Resolve the start state's declared options (getStateOptions) the same way transitions do,
+        // so its timeouts/retry/failure-policy/loading-policy + skipWaitUntil take effect at start.
+        const resolveState: StateResolver = (stateId) =>
+            workflow.getWorkflowStates().find((s) => s.workflowState.stateId === stateId)?.workflowState;
+        const startStateOptions = StateMovementMapper.resolveStateOptions(
+            startState.workflowState.stateId,
+            undefined,
+            resolveState,
+        );
+        const builder = new UnregisteredWorkflowOptionsBuilder();
+        if (startStateOptions !== undefined) {
+            builder.setWorkflowStateOptions(startStateOptions);
+        }
         // Seed the workflow from the data-attribute memo when caching is enabled (matches the Java SDK).
         if (getPersistenceOptions(workflow).enableCaching) {
             builder.setUseMemoForDataAttributes(true);
@@ -79,11 +91,32 @@ export class Client {
             builder.setWorkflowConfigOverride(options.workflowConfigOverride);
         }
         if (options?.initialSearchAttributes) {
+            const saTypes = this.registry.getSearchAttributeTypes(workflowType);
+            options.initialSearchAttributes.forEach((sa) => {
+                const declared = sa.key === undefined ? undefined : saTypes.get(sa.key);
+                if (declared === undefined) {
+                    throw new InvalidArgumentError(
+                        `Initial search attribute ${sa.key} is not declared in workflow ${workflowType}`,
+                    );
+                }
+                if (sa.valueType !== undefined && sa.valueType !== declared) {
+                    throw new InvalidArgumentError(
+                        `Initial search attribute ${sa.key} is declared as ${declared} but was provided as ${sa.valueType}`,
+                    );
+                }
+            });
             builder.addAllInitialSearchAttributes(options.initialSearchAttributes);
         }
         if (options?.initialDataAttributes) {
             const dataAttributes: KeyValue[] = Array.from(options.initialDataAttributes.entries()).map(
-                ([key, value]) => ({ key, value: this.encoder.encode(value) }),
+                ([key, value]) => {
+                    if (!this.registry.isValidDataAttributeKey(workflowType, key)) {
+                        throw new InvalidArgumentError(
+                            `Initial data attribute ${key} is not declared in workflow ${workflowType}`,
+                        );
+                    }
+                    return { key, value: this.encoder.encode(value) };
+                },
             );
             builder.addAllInitialDataAttributes(dataAttributes);
         }
@@ -183,17 +216,14 @@ export class Client {
     }
 
     public async getWorkflowDataAttributes(
+        workflow: ObjectWorkflow,
         workflowId: string,
         keys?: string[],
         workflowRunId?: string,
-        useMemoForDataAttributes?: boolean,
     ): Promise<Map<string, unknown>> {
-        const objects = await this.unregistered.getWorkflowDataAttributes(
-            workflowId,
-            keys,
-            workflowRunId,
-            useMemoForDataAttributes,
-        );
+        // When the workflow caches data attributes, read them from the memo (matches the Java SDK).
+        const useMemo = getPersistenceOptions(workflow).enableCaching;
+        const objects = await this.unregistered.getWorkflowDataAttributes(workflowId, keys, workflowRunId, useMemo);
         const result = new Map<string, unknown>();
         objects.forEach((kv) => {
             if (kv.key !== undefined) {
@@ -209,9 +239,7 @@ export class Client {
         workflowRunId?: string,
     ): Promise<Map<string, unknown>> {
         const keys = Array.from(this.registry.getDataAttributeKeys(workflow.getWorkflowType()));
-        // When the workflow caches data attributes, read them from the memo (matches the Java SDK).
-        const useMemo = getPersistenceOptions(workflow).enableCaching;
-        return this.getWorkflowDataAttributes(workflowId, keys.length > 0 ? keys : undefined, workflowRunId, useMemo);
+        return this.getWorkflowDataAttributes(workflow, workflowId, keys.length > 0 ? keys : undefined, workflowRunId);
     }
 
     public async getWorkflowSearchAttributes(
@@ -260,14 +288,19 @@ export class Client {
         const searchAttributes: SearchAttributeKeyAndType[] = Array.from(
             this.registry.getSearchAttributeTypes(workflowType).entries(),
         ).map(([key, valueType]) => ({ key, valueType }));
+        // Match the Java @RPC defaults: timeout 0 (= server default) and ALL_WITHOUT_LOCKING loading
+        // when the RPC doesn't specify a policy, rather than leaving them unset.
+        const defaultLoadingPolicy: PersistenceLoadingPolicy = {
+            persistenceLoadingType: PersistenceLoadingType.AllWithoutLocking,
+        };
         const request: WorkflowRpcRequest = {
             workflowId,
             workflowRunId,
             rpcName,
             input: this.encoder.encode(input),
-            timeoutSeconds: opts?.timeoutSeconds,
-            dataAttributesLoadingPolicy: opts?.dataAttributesLoadingPolicy,
-            searchAttributesLoadingPolicy: opts?.searchAttributesLoadingPolicy,
+            timeoutSeconds: opts?.timeoutSeconds ?? 0,
+            dataAttributesLoadingPolicy: opts?.dataAttributesLoadingPolicy ?? defaultLoadingPolicy,
+            searchAttributesLoadingPolicy: opts?.searchAttributesLoadingPolicy ?? defaultLoadingPolicy,
             useMemoForDataAttributes: cachingEnabled && !opts?.bypassCachingForStrongConsistency,
             searchAttributes: searchAttributes.length > 0 ? searchAttributes : undefined,
         };

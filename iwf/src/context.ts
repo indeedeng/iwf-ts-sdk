@@ -6,6 +6,7 @@ export class Context {
     private readonly _workflowType?: string;
     private readonly _firstAttemptTimestampSeconds?: number;
     private readonly _attempt?: number;
+    private readonly _childWorkflowRequestId?: string;
 
     constructor(
         workflowStartTimestampSeconds: number,
@@ -14,7 +15,8 @@ export class Context {
         workflowType?: string,
         stateExecutionId?: string,
         firstAttemptTimestampSeconds?: number,
-        attempt?: number){
+        attempt?: number,
+        childWorkflowRequestId?: string){
         this._workflowStartTimestampSeconds = workflowStartTimestampSeconds;
         this._stateExecutionId = stateExecutionId;
         this._workflowRunId = workflowRunId;
@@ -22,6 +24,7 @@ export class Context {
         this._workflowType = workflowType;
         this._firstAttemptTimestampSeconds = firstAttemptTimestampSeconds;
         this._attempt = attempt;
+        this._childWorkflowRequestId = childWorkflowRequestId;
     }
 
     get workflowStartTimestampSeconds(): number {
@@ -51,6 +54,11 @@ export class Context {
     get attempt(): number | undefined {
         return this._attempt;
     }
+
+    /** Stable id (`runId-stateExecutionId`) for idempotently starting a child workflow from this state. */
+    get childWorkflowRequestId(): string | undefined {
+        return this._childWorkflowRequestId;
+    }
 }
 
 export class ContextBuilder {
@@ -61,6 +69,7 @@ export class ContextBuilder {
     private workflowType?: string;
     private firstAttemptTimestampSeconds?: number;
     private attempt?: number;
+    private childWorkflowRequestId?: string;
 
     public setWorkflowStartTimestampSeconds(workflowStartTimestampSeconds: number): ContextBuilder {
         this.workflowStartTimestampSeconds = workflowStartTimestampSeconds;
@@ -97,6 +106,11 @@ export class ContextBuilder {
         return this;
     }
 
+    public setChildWorkflowRequestId(childWorkflowRequestId: string | undefined): ContextBuilder {
+        this.childWorkflowRequestId = childWorkflowRequestId;
+        return this;
+    }
+
     public build(): Context {
         return new Context(
             this.workflowStartTimestampSeconds,
@@ -105,6 +119,7 @@ export class ContextBuilder {
             this.workflowType,
             this.stateExecutionId,
             this.firstAttemptTimestampSeconds,
-            this.attempt);
+            this.attempt,
+            this.childWorkflowRequestId);
     }
 }
