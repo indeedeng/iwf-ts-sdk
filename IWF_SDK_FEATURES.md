@@ -438,6 +438,24 @@ remains is the ergonomic layer (intentional, idiomatic differences) plus one min
   precision loss past 2^53); datetime accessors now document and validate the real accepted formats
   (Unix epoch-seconds or RFC3339 / Go layout `2006-01-02T15:04:05-07:00`).
 
+### Open follow-up (AUTOPLAT-1850)
+A second full re-audit (2026-06-30, serialization excluded) surfaced these behavioral differences,
+tracked for resolution under AUTOPLAT-1850:
+- **High — `getStateOptions()` is never applied.** Declared on `WorkflowState` but consulted nowhere;
+  a state's options only reach the server via the `StateMovement` targeting it (or the start request),
+  so options declared via `getStateOptions()` have no effect unless repeated on every movement. Java's
+  movement mapper uses the registered state's options as the base. Needs the registry threaded into the
+  movement mapper and start path.
+- **Medium — proceed-state recovery incomplete**: no `skipWaitUntil` auto-fill on the recovery state
+  and no rejection of nested failure policies (Java's `autoFillFailureProceedingStateOptions` does both).
+- **Medium — no `waitUntilApiFailurePolicy` validation** (Java requires a retry policy with an attempt
+  bound for `PROCEED_ON_FAILURE`; TS validates only the execute side, and that check doesn't require the bound).
+- **Medium — no start-time validation of initial search/data attributes** (Java rejects unregistered/mis-typed keys).
+- **Medium — `getWorkflowDataAttributes(keys)` doesn't apply caching** (no workflow context; Java always honors `enableCaching`).
+- **Medium — `Context.childWorkflowRequestId` missing** (Java sets `runId-stateExecutionId` for child-workflow idempotency).
+- **Medium — RPC loading-policy/timeout defaults** sent as `undefined` (→ server default) vs Java's explicit
+  defaults; no first-class `partialLoadingKeys`/`lockingKeys` on `RpcOptions`.
+
 ### Not applicable by design
 - **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
   `ObjectEncoder`, not `Class<T>`), so there is no value type to validate. Key/prefix validation *is* enforced.
@@ -453,7 +471,18 @@ remains is the ergonomic layer (intentional, idiomatic differences) plus one min
 - `updateWorkflowConfig` is TS-only (Java has no such client API). TS also adds cron validation,
   empty-type rejection, and richer command-result lookup helpers.
 
+### Accepted minor differences (low impact — not being changed)
+From the 2026-06-30 re-audit; intentionally left as-is:
+- **Stricter-than-Java validation we added on purpose**: datetime format validation on set, the
+  `getSearchAttributeInt` safe-integer guard (JS `number` can't hold int64 past 2^53), the
+  `multiNextStates` empty-guard, and duplicate-RPC-name rejection. Java accepts these inputs; we reject them.
+- **Wire-shape**: TS emits `commandId: ""` and empty command/upsert arrays where Java omits the field;
+  the RPC response includes an (empty) `upsertStateLocals`. Server-tolerant; no behavioral effect.
+- **Lookup semantics**: `getSignalValueByCommandId` returns `undefined` for a missing id where Java throws;
+  no `getSignalValueByIndex`; an unregistered target state isn't rejected at mapping time; duplicate
+  channel-name registration isn't rejected (duplicate persistence keys *are*).
+
 ---
 
 *Generated from analysis of `iwf-java-sdk`, `iwf-python-sdk`, and `iwf-golang-sdk` source on 2026-06-24.
-Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847 the same day.*
+Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847, re-audit follow-ups tracked in AUTOPLAT-1850.*
