@@ -1,4 +1,3 @@
-import { List } from "immutable";
 import { IDReusePolicy, KeyValue, SearchAttribute, WorkflowAlreadyStartedOptions, WorkflowConfig, WorkflowRetryPolicy, WorkflowStateOptions } from "../../gen/iwfidl";
 
 
@@ -8,11 +7,11 @@ export class UnregisteredWorkflowOptions {
     private readonly _startDelaySeconds?: number;
     private readonly _workflowRetryPolicy?: WorkflowRetryPolicy;
     private readonly _workflowStateOptions?: WorkflowStateOptions;
-    private readonly _initialSearchAttributes: List<SearchAttribute>;
-    private readonly _initialDataAttributes: List<KeyValue>;
+    private readonly _initialSearchAttributes: readonly SearchAttribute[];
+    private readonly _initialDataAttributes: readonly KeyValue[];
     private readonly _workflowConfigOverride?: WorkflowConfig;
-    private readonly _waitForCompletionStateIds: List<string>;
-    private readonly _waitForCompletionStateExecutionIds: List<string>;
+    private readonly _waitForCompletionStateIds: readonly string[];
+    private readonly _waitForCompletionStateExecutionIds: readonly string[];
     private readonly _useMemoForDataAttributes?: boolean;
     private readonly _workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions;
 
@@ -21,24 +20,24 @@ export class UnregisteredWorkflowOptions {
         cronSchedule?: string,
         workflowRetryPolicy?: WorkflowRetryPolicy,
         workflowStateOptions?: WorkflowStateOptions,
-        initialSearchAttributes?: List<SearchAttribute>,
+        initialSearchAttributes?: readonly SearchAttribute[],
         workflowConfigOverride?: WorkflowConfig,
         startDelaySeconds?: number,
-        initialDataAttributes?: List<KeyValue>,
-        waitForCompletionStateIds?: List<string>,
-        waitForCompletionStateExecutionIds?: List<string>,
+        initialDataAttributes?: readonly KeyValue[],
+        waitForCompletionStateIds?: readonly string[],
+        waitForCompletionStateExecutionIds?: readonly string[],
         useMemoForDataAttributes?: boolean,
         workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions) {
         this._workflowIdReusePolicy = workflowIdReusePolicy;
         this._cronSchedule = cronSchedule;
         this._workflowRetryPolicy = workflowRetryPolicy;
         this._workflowStateOptions = workflowStateOptions;
-        this._initialSearchAttributes = initialSearchAttributes || List();
+        this._initialSearchAttributes = initialSearchAttributes ?? [];
         this._workflowConfigOverride = workflowConfigOverride;
         this._startDelaySeconds = startDelaySeconds;
-        this._initialDataAttributes = initialDataAttributes || List();
-        this._waitForCompletionStateIds = waitForCompletionStateIds || List();
-        this._waitForCompletionStateExecutionIds = waitForCompletionStateExecutionIds || List();
+        this._initialDataAttributes = initialDataAttributes ?? [];
+        this._waitForCompletionStateIds = waitForCompletionStateIds ?? [];
+        this._waitForCompletionStateExecutionIds = waitForCompletionStateExecutionIds ?? [];
         this._useMemoForDataAttributes = useMemoForDataAttributes;
         this._workflowAlreadyStartedOptions = workflowAlreadyStartedOptions;
     }
@@ -59,7 +58,7 @@ export class UnregisteredWorkflowOptions {
         return this._workflowStateOptions;
     }
 
-    get initialSearchAttributes(): List<SearchAttribute> {
+    get initialSearchAttributes(): readonly SearchAttribute[] {
         return this._initialSearchAttributes;
     }
 
@@ -71,15 +70,15 @@ export class UnregisteredWorkflowOptions {
         return this._startDelaySeconds;
     }
 
-    get initialDataAttributes(): List<KeyValue> {
+    get initialDataAttributes(): readonly KeyValue[] {
         return this._initialDataAttributes;
     }
 
-    get waitForCompletionStateIds(): List<string> {
+    get waitForCompletionStateIds(): readonly string[] {
         return this._waitForCompletionStateIds;
     }
 
-    get waitForCompletionStateExecutionIds(): List<string> {
+    get waitForCompletionStateExecutionIds(): readonly string[] {
         return this._waitForCompletionStateExecutionIds;
     }
 
@@ -183,17 +182,18 @@ export class UnregisteredWorkflowOptionsBuilder {
     }
 
     public build(): UnregisteredWorkflowOptions {
+        // Copy the builder's arrays so later mutation of the builder can't affect the built options.
         return new UnregisteredWorkflowOptions(
             this.workflowIdReusePolicy,
             this.cronSchedule,
             this.workflowRetryPolicy,
             this.workflowStateOptions,
-            List(this.initialSearchAttributes),
+            [...this.initialSearchAttributes],
             this.workflowConfigOverride,
             this.startDelaySeconds,
-            List(this.initialDataAttributes),
-            List(this.waitForCompletionStateIds),
-            List(this.waitForCompletionStateExecutionIds),
+            [...this.initialDataAttributes],
+            [...this.waitForCompletionStateIds],
+            [...this.waitForCompletionStateExecutionIds],
             this.useMemoForDataAttributes,
             this.workflowAlreadyStartedOptions);
     }

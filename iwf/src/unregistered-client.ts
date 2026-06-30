@@ -83,19 +83,19 @@ export class UnregisteredClient {
             if (options.workflowAlreadyStartedOptions) {
                 startOptions.workflowAlreadyStartedOptions = options.workflowAlreadyStartedOptions;
             }
-            const initialSas = options.initialSearchAttributes.toArray();
+            const initialSas = [...options.initialSearchAttributes];
             if (initialSas.length > 0) {
                 startOptions.searchAttributes = initialSas;
             }
-            const initialDas = options.initialDataAttributes.toArray();
+            const initialDas = [...options.initialDataAttributes];
             if (initialDas.length > 0) {
                 startOptions.dataAttributes = initialDas;
             }
-            const waitForStateIds = options.waitForCompletionStateIds.toArray();
+            const waitForStateIds = [...options.waitForCompletionStateIds];
             if (waitForStateIds.length > 0) {
                 request.waitForCompletionStateIds = waitForStateIds;
             }
-            const waitForStateExecutionIds = options.waitForCompletionStateExecutionIds.toArray();
+            const waitForStateExecutionIds = [...options.waitForCompletionStateExecutionIds];
             if (waitForStateExecutionIds.length > 0) {
                 request.waitForCompletionStateExecutionIds = waitForStateExecutionIds;
             }
