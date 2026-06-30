@@ -73,6 +73,9 @@ export class UnregisteredClient {
             if (options.startDelaySeconds !== undefined) {
                 startOptions.workflowStartDelaySeconds = options.startDelaySeconds;
             }
+            if (options.useMemoForDataAttributes !== undefined) {
+                startOptions.useMemoForDataAttributes = options.useMemoForDataAttributes;
+            }
             const initialSas = options.initialSearchAttributes.toArray();
             if (initialSas.length > 0) {
                 startOptions.searchAttributes = initialSas;
@@ -205,9 +208,10 @@ export class UnregisteredClient {
         workflowId: string,
         keys?: string[],
         workflowRunId?: string,
+        useMemoForDataAttributes?: boolean,
     ): Promise<KeyValue[]> {
         const response = await this.call(() =>
-            this.defaultApi.apiV1WorkflowDataobjectsGetPost({ workflowId, workflowRunId, keys }),
+            this.defaultApi.apiV1WorkflowDataobjectsGetPost({ workflowId, workflowRunId, keys, useMemoForDataAttributes }),
         );
         return response.objects ?? [];
     }

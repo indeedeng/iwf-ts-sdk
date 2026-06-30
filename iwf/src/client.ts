@@ -59,6 +59,10 @@ export class Client {
         const builder = new UnregisteredWorkflowOptionsBuilder().setWorkflowStateOptions({
             skipWaitUntil: shouldSkipWaitUntil(startState.workflowState),
         });
+        // Seed the workflow from the data-attribute memo when caching is enabled (matches the Java SDK).
+        if (getPersistenceOptions(workflow).enableCaching) {
+            builder.setUseMemoForDataAttributes(true);
+        }
         if (options?.workflowIdReusePolicy) {
             builder.setWorkflowIdReusePolicy(options.workflowIdReusePolicy);
         }
@@ -159,8 +163,14 @@ export class Client {
         workflowId: string,
         keys?: string[],
         workflowRunId?: string,
+        useMemoForDataAttributes?: boolean,
     ): Promise<Map<string, unknown>> {
-        const objects = await this.unregistered.getWorkflowDataAttributes(workflowId, keys, workflowRunId);
+        const objects = await this.unregistered.getWorkflowDataAttributes(
+            workflowId,
+            keys,
+            workflowRunId,
+            useMemoForDataAttributes,
+        );
         const result = new Map<string, unknown>();
         objects.forEach((kv) => {
             if (kv.key !== undefined) {
@@ -176,7 +186,9 @@ export class Client {
         workflowRunId?: string,
     ): Promise<Map<string, unknown>> {
         const keys = Array.from(this.registry.getDataAttributeKeys(workflow.getWorkflowType()));
-        return this.getWorkflowDataAttributes(workflowId, keys.length > 0 ? keys : undefined, workflowRunId);
+        // When the workflow caches data attributes, read them from the memo (matches the Java SDK).
+        const useMemo = getPersistenceOptions(workflow).enableCaching;
+        return this.getWorkflowDataAttributes(workflowId, keys.length > 0 ? keys : undefined, workflowRunId, useMemo);
     }
 
     public async getWorkflowSearchAttributes(
@@ -215,11 +227,16 @@ export class Client {
         input?: unknown,
         workflowRunId?: string,
     ): Promise<T | undefined> {
-        const rpcDef = this.registry.getRpc(workflow.getWorkflowType(), rpcName);
+        const workflowType = workflow.getWorkflowType();
+        const rpcDef = this.registry.getRpc(workflowType, rpcName);
         const opts = rpcDef?.rpcOptions;
         // Data attributes are served from the workflow memo only when caching is enabled and the
         // caller hasn't asked to bypass it for strongly-consistent reads.
         const cachingEnabled = getPersistenceOptions(workflow).enableCaching;
+        // Send the registered search-attribute key-types so the server can load them for the RPC.
+        const searchAttributes: SearchAttributeKeyAndType[] = Array.from(
+            this.registry.getSearchAttributeTypes(workflowType).entries(),
+        ).map(([key, valueType]) => ({ key, valueType }));
         const request: WorkflowRpcRequest = {
             workflowId,
             workflowRunId,
@@ -229,6 +246,7 @@ export class Client {
             dataAttributesLoadingPolicy: opts?.dataAttributesLoadingPolicy,
             searchAttributesLoadingPolicy: opts?.searchAttributesLoadingPolicy,
             useMemoForDataAttributes: cachingEnabled && !opts?.bypassCachingForStrongConsistency,
+            searchAttributes: searchAttributes.length > 0 ? searchAttributes : undefined,
         };
         const output = await this.unregistered.invokeRpc(request);
         return this.encoder.decode<T>(output);

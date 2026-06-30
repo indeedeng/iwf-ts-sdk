@@ -13,6 +13,7 @@ export class UnregisteredWorkflowOptions {
     private readonly _workflowConfigOverride?: WorkflowConfig;
     private readonly _waitForCompletionStateIds: List<string>;
     private readonly _waitForCompletionStateExecutionIds: List<string>;
+    private readonly _useMemoForDataAttributes?: boolean;
 
     constructor(
         workflowIdReusePolicy?: IDReusePolicy,
@@ -24,7 +25,8 @@ export class UnregisteredWorkflowOptions {
         startDelaySeconds?: number,
         initialDataAttributes?: List<KeyValue>,
         waitForCompletionStateIds?: List<string>,
-        waitForCompletionStateExecutionIds?: List<string>) {
+        waitForCompletionStateExecutionIds?: List<string>,
+        useMemoForDataAttributes?: boolean) {
         this._workflowIdReusePolicy = workflowIdReusePolicy;
         this._cronSchedule = cronSchedule;
         this._workflowRetryPolicy = workflowRetryPolicy;
@@ -35,6 +37,7 @@ export class UnregisteredWorkflowOptions {
         this._initialDataAttributes = initialDataAttributes || List();
         this._waitForCompletionStateIds = waitForCompletionStateIds || List();
         this._waitForCompletionStateExecutionIds = waitForCompletionStateExecutionIds || List();
+        this._useMemoForDataAttributes = useMemoForDataAttributes;
     }
 
     get workflowIdReusePolicy(): IDReusePolicy | undefined {
@@ -76,6 +79,10 @@ export class UnregisteredWorkflowOptions {
     get waitForCompletionStateExecutionIds(): List<string> {
         return this._waitForCompletionStateExecutionIds;
     }
+
+    get useMemoForDataAttributes(): boolean | undefined {
+        return this._useMemoForDataAttributes;
+    }
 }
 
 export class UnregisteredWorkflowOptionsBuilder {
@@ -89,6 +96,7 @@ export class UnregisteredWorkflowOptionsBuilder {
     private workflowConfigOverride?: WorkflowConfig;
     private waitForCompletionStateIds: string[] = [];
     private waitForCompletionStateExecutionIds: string[] = [];
+    private useMemoForDataAttributes?: boolean;
 
     public static newBuilder(): UnregisteredWorkflowOptionsBuilder {
         return new UnregisteredWorkflowOptionsBuilder();
@@ -106,6 +114,11 @@ export class UnregisteredWorkflowOptionsBuilder {
 
     public setStartDelaySeconds(startDelaySeconds: number): UnregisteredWorkflowOptionsBuilder {
         this.startDelaySeconds = startDelaySeconds;
+        return this;
+    }
+
+    public setUseMemoForDataAttributes(useMemoForDataAttributes: boolean): UnregisteredWorkflowOptionsBuilder {
+        this.useMemoForDataAttributes = useMemoForDataAttributes;
         return this;
     }
 
@@ -165,6 +178,7 @@ export class UnregisteredWorkflowOptionsBuilder {
             this.startDelaySeconds,
             List(this.initialDataAttributes),
             List(this.waitForCompletionStateIds),
-            List(this.waitForCompletionStateExecutionIds));
+            List(this.waitForCompletionStateExecutionIds),
+            this.useMemoForDataAttributes);
     }
 }

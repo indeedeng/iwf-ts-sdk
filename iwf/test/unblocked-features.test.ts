@@ -12,6 +12,7 @@ import { StateDef } from "../src/state-definition";
 import { WorkflowState } from "../src/workflow-state";
 import { CommunicationMethodDef } from "../src/communication/communication-method-def";
 import { PersistenceOptions } from "../src/persistence/persistence-options";
+import { PersistenceFieldDef } from "../src/persistence/persistence-field-def";
 import { WorkflowRpcRequest } from "../../gen/iwfidl";
 
 const noSkip = () => undefined;
@@ -37,6 +38,9 @@ class CachingRpcWorkflow implements ObjectWorkflow {
             CommunicationMethodDef.rpcMethodDef("strong", () => "ok", { bypassCachingForStrongConsistency: true }),
             CommunicationMethodDef.rpcMethodDef("cached", () => "ok"),
         ];
+    }
+    getPersistenceSchema(): PersistenceFieldDef[] {
+        return [PersistenceFieldDef.searchAttributeDef("score", SearchAttributeValueType.Int)];
     }
     getPersistenceOptions(): PersistenceOptions {
         return new PersistenceOptions(true);
@@ -165,5 +169,38 @@ describe("RPC bypassCachingForStrongConsistency wiring", () => {
         const { client, captured } = buildClient();
         await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "cached");
         expect(captured()?.useMemoForDataAttributes).toBe(true);
+    });
+
+    it("sends the registered search-attribute key-types on the RPC request", async () => {
+        const { client, captured } = buildClient();
+        await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "cached");
+        expect(captured()?.searchAttributes).toEqual([{ key: "score", valueType: SearchAttributeValueType.Int }]);
+    });
+});
+
+describe("useMemoForDataAttributes on start and reads (caching enabled)", () => {
+    const buildClient = (): { client: Client; unregistered: { startWorkflow: jest.Mock; getWorkflowDataAttributes: jest.Mock } } => {
+        const registry = new Registry();
+        registry.addWorkflow(new CachingRpcWorkflow());
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unregistered = (client as any).unregistered;
+        unregistered.startWorkflow = jest.fn(() => Promise.resolve("run-1"));
+        unregistered.getWorkflowDataAttributes = jest.fn(() => Promise.resolve([]));
+        return { client, unregistered };
+    };
+
+    it("sets useMemoForDataAttributes on the start options", async () => {
+        const { client, unregistered } = buildClient();
+        await client.startWorkflow(new CachingRpcWorkflow(), "wf-1", 60);
+        const options = unregistered.startWorkflow.mock.calls[0][5];
+        expect(options.useMemoForDataAttributes).toBe(true);
+    });
+
+    it("reads all data attributes from the memo", async () => {
+        const { client, unregistered } = buildClient();
+        await client.getAllWorkflowDataAttributes(new CachingRpcWorkflow(), "wf-1");
+        // 4th positional arg of unregistered.getWorkflowDataAttributes is useMemoForDataAttributes
+        expect(unregistered.getWorkflowDataAttributes.mock.calls[0][3]).toBe(true);
     });
 });
