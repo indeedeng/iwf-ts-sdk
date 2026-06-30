@@ -58,6 +58,8 @@ export class PersistenceImpl implements Persistence {
 
     /** Optional registry-backed check that a data-attribute key is declared (by exact key or prefix). */
     private readonly isValidDataAttributeKey?: (key: string) => boolean;
+    /** Optional registry-backed lookup of a search attribute's declared value type. */
+    private readonly searchAttributeType?: (key: string) => SearchAttributeValueType | undefined;
 
     constructor(
         encoder: ObjectEncoder,
@@ -65,12 +67,14 @@ export class PersistenceImpl implements Persistence {
         searchAttributes: Map<string, SearchAttribute>,
         stateLocals: Map<string, EncodedObject>,
         isValidDataAttributeKey?: (key: string) => boolean,
+        searchAttributeType?: (key: string) => SearchAttributeValueType | undefined,
     ) {
         this.encoder = encoder;
         this.dataAttributes = dataAttributes;
         this.searchAttributes = searchAttributes;
         this.stateLocals = stateLocals;
         this.isValidDataAttributeKey = isValidDataAttributeKey;
+        this.searchAttributeType = searchAttributeType;
     }
 
     public getDataAttribute<T = unknown>(key: string): T | undefined {
@@ -93,6 +97,22 @@ export class PersistenceImpl implements Persistence {
         }
     }
 
+    /** Validate that `key` is a declared search attribute of the type the setter is writing. */
+    private checkSearchAttribute(key: string, valueType: SearchAttributeValueType): void {
+        if (this.searchAttributeType === undefined) {
+            return;
+        }
+        const declared = this.searchAttributeType(key);
+        if (declared === undefined) {
+            throw new InvalidArgumentError(`Search attribute ${key} is not declared in the workflow persistence schema`);
+        }
+        if (declared !== valueType) {
+            throw new InvalidArgumentError(
+                `Search attribute ${key} is declared as ${declared} but was set as ${valueType}`,
+            );
+        }
+    }
+
     public getStateExecutionLocal<T = unknown>(key: string): T | undefined {
         const encoded = this.stateLocalUpserts.get(key) ?? this.stateLocals.get(key);
         return this.encoder.decode<T>(encoded);
@@ -106,6 +126,9 @@ export class PersistenceImpl implements Persistence {
     }
 
     public recordEvent(key: string, value: unknown): void {
+        if (this.recordedEvents.has(key)) {
+            throw new InvalidArgumentError(`Event ${key} has already been recorded in this state execution`);
+        }
         const encoded = this.encoder.encode(value);
         if (encoded !== undefined) {
             this.recordedEvents.set(key, encoded);
@@ -117,6 +140,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeInt(key: string, value: number): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Int);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Int, integerValue: value });
     }
 
@@ -125,6 +149,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeDouble(key: string, value: number): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Double);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Double, doubleValue: value });
     }
 
@@ -133,6 +158,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeBoolean(key: string, value: boolean): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Bool);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Bool, boolValue: value });
     }
 
@@ -141,6 +167,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeKeyword(key: string, value: string): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Keyword);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Keyword, stringValue: value });
     }
 
@@ -149,6 +176,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeText(key: string, value: string): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Text);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Text, stringValue: value });
     }
 
@@ -157,6 +185,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeDatetime(key: string, value: string): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.Datetime);
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Datetime, stringValue: value });
     }
 
@@ -165,6 +194,7 @@ export class PersistenceImpl implements Persistence {
     }
 
     public setSearchAttributeKeywordArray(key: string, value: string[]): void {
+        this.checkSearchAttribute(key, SearchAttributeValueType.KeywordArray);
         this.searchAttributeUpserts.set(key, {
             key,
             valueType: SearchAttributeValueType.KeywordArray,

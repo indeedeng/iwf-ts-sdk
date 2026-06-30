@@ -81,4 +81,32 @@ describe("PersistenceImpl", () => {
             expect(() => p.setDataAttribute("anything", 1)).not.toThrow();
         });
     });
+
+    describe("search-attribute type validation", () => {
+        // "score" is declared as Int; everything else is undeclared.
+        const saType = (key: string): SearchAttributeValueType | undefined =>
+            key === "score" ? SearchAttributeValueType.Int : undefined;
+        const withSaTypes = (): PersistenceImpl =>
+            new PersistenceImpl(defaultObjectEncoder, new Map(), new Map(), new Map(), undefined, saType);
+
+        it("allows setting a declared search attribute of the matching type", () => {
+            expect(() => withSaTypes().setSearchAttributeInt("score", 1)).not.toThrow();
+        });
+
+        it("rejects an undeclared search attribute", () => {
+            expect(() => withSaTypes().setSearchAttributeInt("nope", 1)).toThrow(/not declared/);
+        });
+
+        it("rejects setting a declared search attribute as the wrong type", () => {
+            expect(() => withSaTypes().setSearchAttributeKeyword("score", "x")).toThrow(/declared as/);
+        });
+    });
+
+    describe("recordEvent", () => {
+        it("rejects a duplicate event key within one execution", () => {
+            const p = newPersistence();
+            p.recordEvent("e", 1);
+            expect(() => p.recordEvent("e", 2)).toThrow(/already been recorded/);
+        });
+    });
 });

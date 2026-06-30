@@ -145,6 +145,31 @@ describe("WorkerService", () => {
         ).rejects.toThrow(/Internal channel not_declared is not declared/);
     });
 
+    it("rejects an empty state decision returned from execute", async () => {
+        const emptyState: WorkflowState = {
+            get stateId() {
+                return "Empty";
+            },
+            execute: () => new StateDecision([]),
+        };
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "emptyDecision",
+            getWorkflowStates: () => [StateDef.startingState(emptyState)],
+        };
+        const registry = new Registry();
+        registry.addWorkflow(wf);
+        const service = new WorkerService(registry);
+
+        await expect(
+            service.handleWorkflowStateExecute({
+                context: idlContext,
+                workflowType: "emptyDecision",
+                workflowStateId: "Empty",
+                commandResults: {},
+            }),
+        ).rejects.toThrow(/empty state decision/);
+    });
+
     it("reports channel sizes from server-provided infos plus pending publishes", async () => {
         const res = await newService().handleWorkflowWorkerRpc({
             context: idlContext,

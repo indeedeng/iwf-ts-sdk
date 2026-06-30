@@ -33,9 +33,17 @@ describe("CommandRequestMapper", () => {
             CommandRequest.forAnyCommandCombinationCompleted(
                 [["a", "b"], ["c"]],
                 SignalCommand.byName("sig", "a"),
+                SignalCommand.byName("sig", "b"),
+                SignalCommand.byName("sig", "c"),
             ),
         );
         expect(idl.commandWaitingType).toBe(CommandWaitingType.AnyCombinationCompleted);
         expect(idl.commandCombinations).toEqual([{ commandIds: ["a", "b"] }, { commandIds: ["c"] }]);
+    });
+
+    it("rejects a combination referencing an unknown command id", () => {
+        expect(() =>
+            CommandRequest.forAnyCommandCombinationCompleted([["a", "missing"]], SignalCommand.byName("sig", "a")),
+        ).toThrow(/not present in the request/);
     });
 });

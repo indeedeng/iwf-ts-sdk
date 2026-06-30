@@ -47,13 +47,22 @@ export class Registry {
 
     private registerWorkflowState(workflow: ObjectWorkflow): void {
         const workflowType = workflow.getWorkflowType();
+        let startingStateCount = 0;
         workflow.getWorkflowStates().forEach((state) => {
+            if (state.canStartWorkflow) {
+                startingStateCount += 1;
+            }
             const key = this.getStateDefKey(workflowType, state.workflowState.stateId);
             if (this.workflowStateDefStore.has(key)) {
                 throw new WorkflowDefinitionError(`Workflow state ${key} already registered`);
             }
             this.workflowStateDefStore.set(key, state);
         });
+        if (startingStateCount > 1) {
+            throw new WorkflowDefinitionError(
+                `Workflow ${workflowType} declares ${startingStateCount} starting states; at most one is allowed`,
+            );
+        }
     }
 
     private registerPersistence(workflow: ObjectWorkflow): void {
@@ -61,7 +70,14 @@ export class Registry {
         const saTypes = new Map<string, SearchAttributeValueType>();
         const daKeys = new Set<string>();
         const daPrefixes = new Set<string>();
+        const seenKeys = new Set<string>();
         getPersistenceSchema(workflow).forEach((field) => {
+            if (seenKeys.has(field.key)) {
+                throw new WorkflowDefinitionError(
+                    `Persistence key "${field.key}" is declared more than once in workflow ${workflowType}`,
+                );
+            }
+            seenKeys.add(field.key);
             if (field.fieldType === PersistenceFieldType.SearchAttribute) {
                 if (field.searchAttributeType === undefined) {
                     throw new WorkflowDefinitionError(`Search attribute ${field.key} is missing a value type`);

@@ -40,6 +40,8 @@ export class CommunicationImpl implements Communication {
     private readonly isValidSignalChannelName?: (name: string) => boolean;
     private readonly internalChannelInfos: ChannelInfoMap;
     private readonly signalChannelInfos: ChannelInfoMap;
+    /** triggerStateMovements is only valid from an RPC; false in waitUntil/execute. */
+    private readonly allowTriggerStateMovements: boolean;
 
     constructor(
         encoder: ObjectEncoder,
@@ -47,12 +49,14 @@ export class CommunicationImpl implements Communication {
         isValidSignalChannelName?: (name: string) => boolean,
         internalChannelInfos?: ChannelInfoMap,
         signalChannelInfos?: ChannelInfoMap,
+        allowTriggerStateMovements = false,
     ) {
         this.encoder = encoder;
         this.isValidInternalChannelName = isValidInternalChannelName;
         this.isValidSignalChannelName = isValidSignalChannelName;
         this.internalChannelInfos = internalChannelInfos ?? {};
         this.signalChannelInfos = signalChannelInfos ?? {};
+        this.allowTriggerStateMovements = allowTriggerStateMovements;
     }
 
     public publishInternalChannel(channelName: string, value?: unknown): void {
@@ -86,6 +90,11 @@ export class CommunicationImpl implements Communication {
     }
 
     public triggerStateMovements(...movements: StateMovement[]): void {
+        if (!this.allowTriggerStateMovements) {
+            throw new InvalidArgumentError(
+                "triggerStateMovements can only be called from within an RPC, not from waitUntil/execute",
+            );
+        }
         this.toTrigger.push(...movements);
     }
 

@@ -58,6 +58,32 @@ describe("Registry", () => {
         registry.addWorkflow(new SampleWorkflow());
         expect(() => registry.addWorkflow(new SampleWorkflow())).toThrow(WorkflowDefinitionError);
     });
+
+    it("rejects more than one starting state", () => {
+        const second: WorkflowState = {
+            get stateId() {
+                return "S2";
+            },
+            execute: () => StateDecision.gracefulCompleteWorkflow(),
+        };
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "twoStart",
+            getWorkflowStates: () => [StateDef.startingState(state), StateDef.startingState(second)],
+        };
+        expect(() => new Registry().addWorkflow(wf)).toThrow(/starting states/);
+    });
+
+    it("rejects a persistence key declared more than once", () => {
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "dupKey",
+            getWorkflowStates: () => [StateDef.startingState(state)],
+            getPersistenceSchema: () => [
+                PersistenceFieldDef.dataAttributeDef("dup"),
+                PersistenceFieldDef.searchAttributeDef("dup", SearchAttributeValueType.Int),
+            ],
+        };
+        expect(() => new Registry().addWorkflow(wf)).toThrow(/declared more than once/);
+    });
 });
 
 class PrefixWorkflow implements ObjectWorkflow {

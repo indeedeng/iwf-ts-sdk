@@ -1,5 +1,6 @@
 import { CommandCombination, CommandWaitingType } from "../../gen/iwfidl";
 import { BaseCommand } from "./base-command";
+import { WorkflowDefinitionError } from "./errors";
 
 export class CommandRequest {
     private readonly commands: BaseCommand[];
@@ -32,6 +33,18 @@ export class CommandRequest {
         commandIdCombinations: string[][],
         ...commands: BaseCommand[]
     ): CommandRequest {
+        const knownIds = new Set(
+            commands.map((c) => c.getCommandId()).filter((id): id is string => id !== undefined),
+        );
+        commandIdCombinations.forEach((commandIds) =>
+            commandIds.forEach((id) => {
+                if (!knownIds.has(id)) {
+                    throw new WorkflowDefinitionError(
+                        `Command combination references command id "${id}" which is not present in the request`,
+                    );
+                }
+            }),
+        );
         const combinations: CommandCombination[] = commandIdCombinations.map((commandIds) => ({ commandIds }));
         return new CommandRequest(commands, combinations, CommandWaitingType.AnyCombinationCompleted);
     }

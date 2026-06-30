@@ -21,7 +21,7 @@ import { PersistenceImpl, keyValuesToMap, searchAttributesToMap } from "./persis
 import { CommandRequest } from "./command-request";
 import { StateDecision } from "./state-decision";
 import { shouldSkipWaitUntil } from "./workflow-state";
-import { NotRegisteredError } from "./errors";
+import { NotRegisteredError, WorkflowDefinitionError } from "./errors";
 
 /** Bundle of what a single state/RPC invocation reads and writes. */
 interface InvocationIo {
@@ -86,6 +86,11 @@ export class WorkerService {
             io.persistence,
             io.communication,
         );
+        if (decision === undefined || decision === null || decision.nextStates.length === 0) {
+            throw new WorkflowDefinitionError(
+                `State ${request.workflowStateId} returned an empty state decision; execute must return a next state or a workflow-completion decision`,
+            );
+        }
 
         return {
             stateDecision: StateDecisionMapper.toIdl(decision, this.encoder, this.skipResolver(request.workflowType)),
@@ -111,6 +116,7 @@ export class WorkerService {
             undefined,
             request.internalChannelInfos,
             request.signalChannelInfos,
+            true, // RPCs may trigger state movements
         );
         const input = this.encoder.decode(request.input);
 
@@ -148,6 +154,7 @@ export class WorkerService {
         stateLocals: KeyValue[] | undefined,
         internalChannelInfos?: ChannelInfoMap,
         signalChannelInfos?: ChannelInfoMap,
+        allowTriggerStateMovements = false,
     ): InvocationIo {
         const persistence = new PersistenceImpl(
             this.encoder,
@@ -155,6 +162,7 @@ export class WorkerService {
             searchAttributesToMap(searchAttributes),
             keyValuesToMap(stateLocals),
             (key) => this.registry.isValidDataAttributeKey(workflowType, key),
+            (key) => this.registry.getSearchAttributeTypes(workflowType).get(key),
         );
         const communication = new CommunicationImpl(
             this.encoder,
@@ -162,6 +170,7 @@ export class WorkerService {
             (name) => this.registry.isValidSignalChannelName(workflowType, name),
             internalChannelInfos,
             signalChannelInfos,
+            allowTriggerStateMovements,
         );
         return { persistence, communication };
     }
