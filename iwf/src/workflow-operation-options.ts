@@ -13,6 +13,8 @@ export interface ResetWorkflowOptions {
     stateId?: string;
     stateExecutionId?: string;
     skipSignalReapply?: boolean;
+    /** Skip re-applying update operations when resetting. */
+    skipUpdateReapply?: boolean;
 }
 
 export function resetToBeginning(reason?: string): ResetWorkflowOptions {

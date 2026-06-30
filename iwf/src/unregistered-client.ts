@@ -76,6 +76,9 @@ export class UnregisteredClient {
             if (options.useMemoForDataAttributes !== undefined) {
                 startOptions.useMemoForDataAttributes = options.useMemoForDataAttributes;
             }
+            if (options.workflowAlreadyStartedOptions) {
+                startOptions.workflowAlreadyStartedOptions = options.workflowAlreadyStartedOptions;
+            }
             const initialSas = options.initialSearchAttributes.toArray();
             if (initialSas.length > 0) {
                 startOptions.searchAttributes = initialSas;
@@ -227,6 +230,7 @@ export class UnregisteredClient {
                 stateId: options.stateId,
                 stateExecutionId: options.stateExecutionId,
                 skipSignalReapply: options.skipSignalReapply,
+                skipUpdateReapply: options.skipUpdateReapply,
             }),
         );
         return response.workflowRunId;

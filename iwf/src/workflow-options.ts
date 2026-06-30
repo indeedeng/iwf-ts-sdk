@@ -1,4 +1,10 @@
-import { IDReusePolicy, SearchAttribute, WorkflowConfig, WorkflowRetryPolicy } from "../../gen/iwfidl";
+import {
+    IDReusePolicy,
+    SearchAttribute,
+    WorkflowAlreadyStartedOptions,
+    WorkflowConfig,
+    WorkflowRetryPolicy,
+} from "../../gen/iwfidl";
 
 /**
  * Options for starting a workflow via the registered {@link Client}.
@@ -18,4 +24,6 @@ export interface WorkflowOptions {
     waitForCompletionStateIds?: string[];
     /** Block `startWorkflow` until these specific state-execution IDs complete. */
     waitForCompletionStateExecutionIds?: string[];
+    /** Opt into idempotent start: ignore an "already started" error (optionally for a given request ID). */
+    workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions;
 }

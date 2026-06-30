@@ -7,6 +7,7 @@ import { UnregisteredClient } from "../src/unregistered-client";
 import { WorkflowUncompletedError } from "../src/errors";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
 import { localDefaultClientOptions } from "../src/client-options";
+import { resetToBeginning } from "../src/workflow-operation-options";
 import { Registry } from "../src/registry";
 import { ObjectWorkflow } from "../src/object-workflow";
 import { StateDef } from "../src/state-definition";
@@ -115,6 +116,7 @@ describe("start-options wiring (delay, initial data attributes, wait-for-complet
             .addAllInitialDataAttributes([{ key: "k", value: defaultObjectEncoder.encode({ n: 1 }) }])
             .addAllWaitForCompletionStateIds(["StateA"])
             .addAllWaitForCompletionStateExecutionIds(["StateA-1"])
+            .setWorkflowAlreadyStartedOptions({ ignoreAlreadyStartedError: true, requestId: "req-1" })
             .build();
 
         const runId = await client.startWorkflow("wfType", "wf-1", 60, "Start", undefined, options);
@@ -125,6 +127,10 @@ describe("start-options wiring (delay, initial data attributes, wait-for-complet
         expect(defaultObjectEncoder.decode(captured?.workflowStartOptions?.dataAttributes?.[0].value)).toEqual({ n: 1 });
         expect(captured?.waitForCompletionStateIds).toEqual(["StateA"]);
         expect(captured?.waitForCompletionStateExecutionIds).toEqual(["StateA-1"]);
+        expect(captured?.workflowStartOptions?.workflowAlreadyStartedOptions).toEqual({
+            ignoreAlreadyStartedError: true,
+            requestId: "req-1",
+        });
     });
 
     it("omits the new fields when they are not set", async () => {
@@ -237,5 +243,20 @@ describe("no-wait try-get result calls", () => {
         getPost.mockResolvedValue({ data: { workflowStatus: WorkflowStatus.Running } });
 
         await expect(client.getComplexWorkflowResult("wf-1")).rejects.toBeInstanceOf(WorkflowUncompletedError);
+    });
+});
+
+describe("reset skipUpdateReapply", () => {
+    it("sends skipUpdateReapply on the reset request", async () => {
+        const client = new UnregisteredClient(localDefaultClientOptions());
+        let captured: { skipUpdateReapply?: boolean } | undefined;
+        client.defaultApi.apiV1WorkflowResetPost = jest.fn((request: { skipUpdateReapply?: boolean }) => {
+            captured = request;
+            return Promise.resolve({ data: { workflowRunId: "run-1" } });
+        }) as never;
+
+        await client.resetWorkflow("wf-1", { ...resetToBeginning("redo"), skipUpdateReapply: true });
+
+        expect(captured?.skipUpdateReapply).toBe(true);
     });
 });

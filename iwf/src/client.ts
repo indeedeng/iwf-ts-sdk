@@ -93,6 +93,9 @@ export class Client {
         if (options?.waitForCompletionStateExecutionIds) {
             builder.addAllWaitForCompletionStateExecutionIds(options.waitForCompletionStateExecutionIds);
         }
+        if (options?.workflowAlreadyStartedOptions) {
+            builder.setWorkflowAlreadyStartedOptions(options.workflowAlreadyStartedOptions);
+        }
 
         return this.unregistered.startWorkflow(
             workflowType,

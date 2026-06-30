@@ -1,5 +1,5 @@
 import { List } from "immutable";
-import { IDReusePolicy, KeyValue, SearchAttribute, WorkflowConfig, WorkflowRetryPolicy, WorkflowStateOptions } from "../../gen/iwfidl";
+import { IDReusePolicy, KeyValue, SearchAttribute, WorkflowAlreadyStartedOptions, WorkflowConfig, WorkflowRetryPolicy, WorkflowStateOptions } from "../../gen/iwfidl";
 
 
 export class UnregisteredWorkflowOptions {
@@ -14,6 +14,7 @@ export class UnregisteredWorkflowOptions {
     private readonly _waitForCompletionStateIds: List<string>;
     private readonly _waitForCompletionStateExecutionIds: List<string>;
     private readonly _useMemoForDataAttributes?: boolean;
+    private readonly _workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions;
 
     constructor(
         workflowIdReusePolicy?: IDReusePolicy,
@@ -26,7 +27,8 @@ export class UnregisteredWorkflowOptions {
         initialDataAttributes?: List<KeyValue>,
         waitForCompletionStateIds?: List<string>,
         waitForCompletionStateExecutionIds?: List<string>,
-        useMemoForDataAttributes?: boolean) {
+        useMemoForDataAttributes?: boolean,
+        workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions) {
         this._workflowIdReusePolicy = workflowIdReusePolicy;
         this._cronSchedule = cronSchedule;
         this._workflowRetryPolicy = workflowRetryPolicy;
@@ -38,6 +40,7 @@ export class UnregisteredWorkflowOptions {
         this._waitForCompletionStateIds = waitForCompletionStateIds || List();
         this._waitForCompletionStateExecutionIds = waitForCompletionStateExecutionIds || List();
         this._useMemoForDataAttributes = useMemoForDataAttributes;
+        this._workflowAlreadyStartedOptions = workflowAlreadyStartedOptions;
     }
 
     get workflowIdReusePolicy(): IDReusePolicy | undefined {
@@ -83,6 +86,10 @@ export class UnregisteredWorkflowOptions {
     get useMemoForDataAttributes(): boolean | undefined {
         return this._useMemoForDataAttributes;
     }
+
+    get workflowAlreadyStartedOptions(): WorkflowAlreadyStartedOptions | undefined {
+        return this._workflowAlreadyStartedOptions;
+    }
 }
 
 export class UnregisteredWorkflowOptionsBuilder {
@@ -97,6 +104,7 @@ export class UnregisteredWorkflowOptionsBuilder {
     private waitForCompletionStateIds: string[] = [];
     private waitForCompletionStateExecutionIds: string[] = [];
     private useMemoForDataAttributes?: boolean;
+    private workflowAlreadyStartedOptions?: WorkflowAlreadyStartedOptions;
 
     public static newBuilder(): UnregisteredWorkflowOptionsBuilder {
         return new UnregisteredWorkflowOptionsBuilder();
@@ -119,6 +127,13 @@ export class UnregisteredWorkflowOptionsBuilder {
 
     public setUseMemoForDataAttributes(useMemoForDataAttributes: boolean): UnregisteredWorkflowOptionsBuilder {
         this.useMemoForDataAttributes = useMemoForDataAttributes;
+        return this;
+    }
+
+    public setWorkflowAlreadyStartedOptions(
+        workflowAlreadyStartedOptions: WorkflowAlreadyStartedOptions,
+    ): UnregisteredWorkflowOptionsBuilder {
+        this.workflowAlreadyStartedOptions = workflowAlreadyStartedOptions;
         return this;
     }
 
@@ -179,6 +194,7 @@ export class UnregisteredWorkflowOptionsBuilder {
             List(this.initialDataAttributes),
             List(this.waitForCompletionStateIds),
             List(this.waitForCompletionStateExecutionIds),
-            this.useMemoForDataAttributes);
+            this.useMemoForDataAttributes,
+            this.workflowAlreadyStartedOptions);
     }
 }
