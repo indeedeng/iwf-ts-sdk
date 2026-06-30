@@ -11,6 +11,11 @@ export interface Persistence {
     getDataAttribute<T = unknown>(key: string): T | undefined;
     setDataAttribute(key: string, value: unknown): void;
 
+    /**
+     * INT (int64) search attribute. Values are JS `number`s, so magnitudes above
+     * `Number.MAX_SAFE_INTEGER` (2^53 − 1) cannot be represented exactly — `setSearchAttributeInt`
+     * rejects unsafe integers rather than silently losing precision.
+     */
     getSearchAttributeInt(key: string): number | undefined;
     setSearchAttributeInt(key: string, value: number): void;
 
@@ -26,7 +31,11 @@ export interface Persistence {
     getSearchAttributeText(key: string): string | undefined;
     setSearchAttributeText(key: string, value: string): void;
 
-    /** Datetime search attributes are represented as ISO-8601 strings. */
+    /**
+     * DATETIME search attribute. iWF accepts either Unix epoch-seconds (e.g. "1717200000") or an
+     * RFC3339 / Go-reference-layout timestamp (e.g. "2006-01-02T15:04:05-07:00"); `setSearchAttributeDatetime`
+     * rejects values that are neither.
+     */
     getSearchAttributeDatetime(key: string): string | undefined;
     setSearchAttributeDatetime(key: string, value: string): void;
 
@@ -141,6 +150,12 @@ export class PersistenceImpl implements Persistence {
 
     public setSearchAttributeInt(key: string, value: number): void {
         this.checkSearchAttribute(key, SearchAttributeValueType.Int);
+        if (!Number.isSafeInteger(value)) {
+            throw new InvalidArgumentError(
+                `Search attribute ${key}: ${value} is not a safe integer (|value| must be <= 2^53-1 to be ` +
+                    `represented exactly as an int64)`,
+            );
+        }
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Int, integerValue: value });
     }
 
@@ -186,6 +201,14 @@ export class PersistenceImpl implements Persistence {
 
     public setSearchAttributeDatetime(key: string, value: string): void {
         this.checkSearchAttribute(key, SearchAttributeValueType.Datetime);
+        // iWF accepts Unix epoch-seconds or an RFC3339 / Go-layout timestamp; reject anything else.
+        const isEpochSeconds = /^\d+$/.test(value);
+        if (!isEpochSeconds && Number.isNaN(Date.parse(value))) {
+            throw new InvalidArgumentError(
+                `Search attribute ${key}: "${value}" is not a valid datetime ` +
+                    `(expected Unix epoch-seconds or an RFC3339 timestamp like 2006-01-02T15:04:05-07:00)`,
+            );
+        }
         this.searchAttributeUpserts.set(key, { key, valueType: SearchAttributeValueType.Datetime, stringValue: value });
     }
 

@@ -109,4 +109,19 @@ describe("PersistenceImpl", () => {
             expect(() => p.recordEvent("e", 2)).toThrow(/already been recorded/);
         });
     });
+
+    describe("int64 precision + datetime format", () => {
+        it("rejects an int search attribute beyond safe-integer range", () => {
+            const p = newPersistence();
+            expect(() => p.setSearchAttributeInt("i", Number.MAX_SAFE_INTEGER + 1)).toThrow(/safe integer/);
+            expect(() => p.setSearchAttributeInt("i", 42)).not.toThrow();
+        });
+
+        it("accepts epoch-seconds and RFC3339 datetimes, rejects garbage", () => {
+            const p = newPersistence();
+            expect(() => p.setSearchAttributeDatetime("dt", "1717200000")).not.toThrow();
+            expect(() => p.setSearchAttributeDatetime("dt", "2006-01-02T15:04:05-07:00")).not.toThrow();
+            expect(() => p.setSearchAttributeDatetime("dt", "not-a-date")).toThrow(/not a valid datetime/);
+        });
+    });
 });
