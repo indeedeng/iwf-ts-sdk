@@ -1,22 +1,25 @@
-import { UnregisteredClient } from "../iwf/src/unregistered-client";
-import { UnregisteredWorkflowOptionsBuilder } from "../iwf/src/unregistered-workflow-options";
+import { Client, Registry } from "../iwf";
+import { BasicWorkflow } from "./src/basic-workflow";
 
-const clientOptions = {
-    serverUrl: "http://localhost:8801",
-    workerUrl: "http://localhost:8802"
+async function main(): Promise<void> {
+    const registry = new Registry();
+    const workflow = new BasicWorkflow();
+    registry.addWorkflow(workflow);
+
+    const client = new Client(registry, {
+        serverUrl: "http://localhost:8801",
+        workerUrl: "http://localhost:8802",
+    });
+
+    const workflowId = `basic-${Date.now()}`;
+    const runId = await client.startWorkflow(workflow, workflowId, 3600, "start");
+    console.log(`started workflow ${workflowId}, run ${runId}`);
+
+    const result = await client.getSimpleWorkflowResult<string>(workflowId);
+    console.log(`result: ${result}`);
 }
 
-const client = new UnregisteredClient(clientOptions);
-const workflowRunId = client.startWorkflow(
-    "basic", 
-    "testGet", 
-    "state1", 
-    {encoding: '', data : 'start'}, 
-    101,
-    UnregisteredWorkflowOptionsBuilder.newBuilder().build())
-    .then((workflowRunId) => {
-        console.log(workflowRunId);
-        return client.getSimpleWorkflowResultWithWait("testGet", workflowRunId)
-    }).then((result) => {
-        console.log(result);
-    });
+main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});

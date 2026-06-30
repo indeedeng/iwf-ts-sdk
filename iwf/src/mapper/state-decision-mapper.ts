@@ -1,13 +1,28 @@
 import { StateDecision } from "../state-decision";
-import { StateDecision as IdlStateDecision } from "../../../gen/iwfidl/api";
-import { StateMovementMapper } from "./state-movement-mapper";
+import { StateDecision as IdlStateDecision, WorkflowConditionalClose } from "../../../gen/iwfidl/api";
+import { SkipWaitUntilResolver, StateMovementMapper } from "./state-movement-mapper";
+import { ObjectEncoder } from "../object-encoder";
 
 export class StateDecisionMapper {
-    public static toIdlStateDecision(stateDecision: StateDecision): IdlStateDecision {
+    public static toIdl(
+        stateDecision: StateDecision,
+        encoder: ObjectEncoder,
+        resolveSkipWaitUntil: SkipWaitUntilResolver,
+    ): IdlStateDecision {
+        let conditionalClose: WorkflowConditionalClose | undefined;
+        if (stateDecision.conditionalClose) {
+            conditionalClose = {
+                conditionalCloseType: stateDecision.conditionalClose.closeType,
+                channelName: stateDecision.conditionalClose.channelName,
+                closeInput: encoder.encode(stateDecision.conditionalClose.closeOutput),
+            };
+        }
+
         return {
-            nextStates: stateDecision.nextStates.map((stateMovement) => {
-                return StateMovementMapper.toIdlStateMovement(stateMovement);
-            }),
+            nextStates: stateDecision.nextStates.map((movement) =>
+                StateMovementMapper.toIdl(movement, encoder, resolveSkipWaitUntil),
+            ),
+            conditionalClose,
         };
     }
 }

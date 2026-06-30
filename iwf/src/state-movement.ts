@@ -1,96 +1,110 @@
-import { EncodedObject } from "../../gen/iwfidl";
+import { InvalidArgumentError } from "./errors";
+import { WorkflowStateOptions } from "./workflow-state-options";
 
+/**
+ * A movement to a next state (or to a workflow-closing pseudo-state). Holds a native, not-yet-
+ * encoded input; encoding and skipWaitUntil resolution happen at the mapping boundary.
+ */
 export class StateMovement {
     private readonly _stateId: string;
-    private readonly _stateInput?: any;
+    private readonly _stateInput?: unknown;
+    private readonly _stateOptions?: WorkflowStateOptions;
+    private readonly _waitForKey?: string;
 
-    private static readonly RESERVED_STATE_ID_PREFIX = "_SYS_";
-    private static readonly GRACEFUL_COMPLETING_WORKFLOW_STATE_ID = "_SYS_GRACEFUL_COMPLETING_WORKFLOW";
-    private static readonly FORCE_COMPLETING_WORKFLOW_STATE_ID = "_SYS_FORCE_COMPLETING_WORKFLOW";
-    private static readonly FORCE_FAILING_WORKFLOW_STATE_ID = "_SYS_FORCE_FAILING_WORKFLOW";
-    private static readonly DEAD_END_WORKFLOW_STATE_ID = "_SYS_DEAD_END";
+    public static readonly RESERVED_STATE_ID_PREFIX = "_SYS_";
+    public static readonly GRACEFUL_COMPLETING_WORKFLOW_STATE_ID = "_SYS_GRACEFUL_COMPLETING_WORKFLOW";
+    public static readonly FORCE_COMPLETING_WORKFLOW_STATE_ID = "_SYS_FORCE_COMPLETING_WORKFLOW";
+    public static readonly FORCE_FAILING_WORKFLOW_STATE_ID = "_SYS_FORCE_FAILING_WORKFLOW";
+    public static readonly DEAD_END_WORKFLOW_STATE_ID = "_SYS_DEAD_END";
 
-    public static gracefulCompletingWorkflow(): StateMovement {
-        return new StateMovement(StateMovement.GRACEFUL_COMPLETING_WORKFLOW_STATE_ID);
+    constructor(stateId: string, stateInput?: unknown, stateOptions?: WorkflowStateOptions, waitForKey?: string) {
+        this._stateId = stateId;
+        this._stateInput = stateInput;
+        this._stateOptions = stateOptions;
+        this._waitForKey = waitForKey;
     }
 
-    public static gracefulCompletingWorkflowWithInput(stateInput: EncodedObject): StateMovement {
+    /**
+     * Move to a user-defined state. Throws if the id collides with a reserved system prefix.
+     * `waitForKey` tags this execution so a client can wait on it via waitForStateExecutionCompletionByKey.
+     */
+    public static create(
+        stateId: string,
+        stateInput?: unknown,
+        stateOptions?: WorkflowStateOptions,
+        waitForKey?: string,
+    ): StateMovement {
+        if (stateId.startsWith(StateMovement.RESERVED_STATE_ID_PREFIX)) {
+            throw new InvalidArgumentError(`State id ${stateId} uses the reserved prefix ${StateMovement.RESERVED_STATE_ID_PREFIX}`);
+        }
+        return new StateMovement(stateId, stateInput, stateOptions, waitForKey);
+    }
+
+    public static gracefulCompletingWorkflow(stateInput?: unknown): StateMovement {
         return new StateMovement(StateMovement.GRACEFUL_COMPLETING_WORKFLOW_STATE_ID, stateInput);
     }
 
-    public static forceCompletingWorkflow(): StateMovement {
-        return new StateMovement(StateMovement.FORCE_COMPLETING_WORKFLOW_STATE_ID);
-    }
-
-    public static forceCompletingWorkflowWithInput(stateInput: EncodedObject): StateMovement {
+    public static forceCompletingWorkflow(stateInput?: unknown): StateMovement {
         return new StateMovement(StateMovement.FORCE_COMPLETING_WORKFLOW_STATE_ID, stateInput);
     }
 
-    public static forceFailingWorkflow(): StateMovement {
-        return new StateMovement(StateMovement.FORCE_FAILING_WORKFLOW_STATE_ID);
-    }
-
-    public static forceFailingWorkflowWithInput(stateInput: EncodedObject): StateMovement {
+    public static forceFailingWorkflow(stateInput?: unknown): StateMovement {
         return new StateMovement(StateMovement.FORCE_FAILING_WORKFLOW_STATE_ID, stateInput);
     }
 
-    public static deadEndWorkflow(): StateMovement {
+    public static deadEnd(): StateMovement {
         return new StateMovement(StateMovement.DEAD_END_WORKFLOW_STATE_ID);
-    }
-
-    public static create(stateId: string) {
-        if (stateId.startsWith(StateMovement.RESERVED_STATE_ID_PREFIX)) {
-            throw new Error(`State ID ${stateId} is reserved`);
-        }
-        
-        return new StateMovement(stateId);
-    }
-
-    public static createWithInput(stateId: string, stateInput: any) {
-        if (stateId.startsWith(StateMovement.RESERVED_STATE_ID_PREFIX)) {
-            throw new Error(`State ID ${stateId} is reserved`);
-        }
-        
-        return new StateMovement(stateId, stateInput);
-    }
-
-    private constructor(stateId: string, stateInput?: any) {
-        this._stateId = stateId;
-        this._stateInput = stateInput;
     }
 
     get stateId(): string {
         return this._stateId;
     }
-    
-    get stateInput(): any | undefined {
+
+    get stateInput(): unknown {
         return this._stateInput;
     }
 
-    public withStateId(stateId: string): StateMovement {
-        return new StateMovement(stateId, this.stateInput);
+    get stateOptions(): WorkflowStateOptions | undefined {
+        return this._stateOptions;
     }
 
-    public withStateInput(stateInput: EncodedObject): StateMovement {
-        return new StateMovement(this.stateId, stateInput);
+    get waitForKey(): string | undefined {
+        return this._waitForKey;
+    }
+
+    /** True for movements that target a workflow-closing or dead-end system state. */
+    get isClosingOrDeadEnd(): boolean {
+        return this._stateId.startsWith(StateMovement.RESERVED_STATE_ID_PREFIX);
     }
 }
 
 export class StateMovementBuilder {
     private stateId = "";
-    private stateInput?: EncodedObject;
+    private stateInput?: unknown;
+    private stateOptions?: WorkflowStateOptions;
+    private waitForKey?: string;
 
     public setStateId(stateId: string): StateMovementBuilder {
         this.stateId = stateId;
         return this;
     }
 
-    public setStateInput(stateInput: EncodedObject): StateMovementBuilder {
+    public setStateInput(stateInput: unknown): StateMovementBuilder {
         this.stateInput = stateInput;
         return this;
     }
 
+    public setStateOptions(stateOptions: WorkflowStateOptions): StateMovementBuilder {
+        this.stateOptions = stateOptions;
+        return this;
+    }
+
+    public setWaitForKey(waitForKey: string): StateMovementBuilder {
+        this.waitForKey = waitForKey;
+        return this;
+    }
+
     public build(): StateMovement {
-        return StateMovement.createWithInput(this.stateId, this.stateInput);
+        return StateMovement.create(this.stateId, this.stateInput, this.stateOptions, this.waitForKey);
     }
 }

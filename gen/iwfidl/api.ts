@@ -26,6 +26,19 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError } from './base';
 /**
  * 
  * @export
+ * @interface ChannelInfo
+ */
+export interface ChannelInfo {
+    /**
+     * 
+     * @type {number}
+     * @memberof ChannelInfo
+     */
+    'size'?: number;
+}
+/**
+ * 
+ * @export
  * @enum {string}
  */
 
@@ -35,34 +48,6 @@ export const ChannelRequestStatus = {
 } as const;
 
 export type ChannelRequestStatus = typeof ChannelRequestStatus[keyof typeof ChannelRequestStatus];
-
-
-/**
- * 
- * @export
- * @interface CommandCarryOverPolicy
- */
-export interface CommandCarryOverPolicy {
-    /**
-     * 
-     * @type {CommandCarryOverType}
-     * @memberof CommandCarryOverPolicy
-     */
-    'commandCarryOverType'?: CommandCarryOverType;
-}
-
-
-/**
- * 
- * @export
- * @enum {string}
- */
-
-export const CommandCarryOverType = {
-    None: 'NONE'
-} as const;
-
-export type CommandCarryOverType = typeof CommandCarryOverType[keyof typeof CommandCarryOverType];
 
 
 /**
@@ -147,6 +132,12 @@ export interface CommandResults {
      * @memberof CommandResults
      */
     'stateStartApiSucceeded'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CommandResults
+     */
+    'stateWaitUntilFailed'?: boolean;
 }
 /**
  * 
@@ -274,7 +265,8 @@ export const ErrorSubStatus = {
     UncategorizedSubStatus: 'UNCATEGORIZED_SUB_STATUS',
     WorkflowAlreadyStartedSubStatus: 'WORKFLOW_ALREADY_STARTED_SUB_STATUS',
     WorkflowNotExistsSubStatus: 'WORKFLOW_NOT_EXISTS_SUB_STATUS',
-    WorkerApiError: 'WORKER_API_ERROR'
+    WorkerApiError: 'WORKER_API_ERROR',
+    LongPollTimeOutSubStatus: 'LONG_POLL_TIME_OUT_SUB_STATUS'
 } as const;
 
 export type ErrorSubStatus = typeof ErrorSubStatus[keyof typeof ErrorSubStatus];
@@ -286,8 +278,62 @@ export type ErrorSubStatus = typeof ErrorSubStatus[keyof typeof ErrorSubStatus];
  * @enum {string}
  */
 
+export const ExecuteApiFailurePolicy = {
+    FailWorkflowOnExecuteApiFailure: 'FAIL_WORKFLOW_ON_EXECUTE_API_FAILURE',
+    ProceedToConfiguredState: 'PROCEED_TO_CONFIGURED_STATE'
+} as const;
+
+export type ExecuteApiFailurePolicy = typeof ExecuteApiFailurePolicy[keyof typeof ExecuteApiFailurePolicy];
+
+
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
+export const ExecutingStateIdMode = {
+    EnabledForAll: 'ENABLED_FOR_ALL',
+    EnabledForStatesWithWaitUntil: 'ENABLED_FOR_STATES_WITH_WAIT_UNTIL',
+    Disabled: 'DISABLED'
+} as const;
+
+export type ExecutingStateIdMode = typeof ExecutingStateIdMode[keyof typeof ExecutingStateIdMode];
+
+
+/**
+ * 
+ * @export
+ * @interface HealthInfo
+ */
+export interface HealthInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof HealthInfo
+     */
+    'condition'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof HealthInfo
+     */
+    'hostname'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof HealthInfo
+     */
+    'duration'?: number;
+}
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
 export const IDReusePolicy = {
-    AllowIfPreviousExistsAbnormally: 'ALLOW_IF_PREVIOUS_EXISTS_ABNORMALLY',
+    AllowIfPreviousExitsAbnormally: 'ALLOW_IF_PREVIOUS_EXITS_ABNORMALLY',
     AllowIfNoRunning: 'ALLOW_IF_NO_RUNNING',
     DisallowReuse: 'DISALLOW_REUSE',
     AllowTerminateIfRunning: 'ALLOW_TERMINATE_IF_RUNNING'
@@ -307,13 +353,25 @@ export interface InterStateChannelCommand {
      * @type {string}
      * @memberof InterStateChannelCommand
      */
-    'commandId': string;
+    'commandId'?: string;
     /**
      * 
      * @type {string}
      * @memberof InterStateChannelCommand
      */
     'channelName': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof InterStateChannelCommand
+     */
+    'atLeast'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof InterStateChannelCommand
+     */
+    'atMost'?: number;
 }
 /**
  * 
@@ -410,6 +468,12 @@ export interface PersistenceLoadingPolicy {
      * @memberof PersistenceLoadingPolicy
      */
     'lockingKeys'?: Array<string>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PersistenceLoadingPolicy
+     */
+    'useKeyAsPrefix'?: boolean;
 }
 
 
@@ -422,12 +486,39 @@ export interface PersistenceLoadingPolicy {
 export const PersistenceLoadingType = {
     AllWithoutLocking: 'LOAD_ALL_WITHOUT_LOCKING',
     PartialWithoutLocking: 'LOAD_PARTIAL_WITHOUT_LOCKING',
-    PartialWithExclusiveLock: 'LOAD_PARTIAL_WITH_EXCLUSIVE_LOCK'
+    PartialWithExclusiveLock: 'LOAD_PARTIAL_WITH_EXCLUSIVE_LOCK',
+    None: 'LOAD_NONE',
+    AllWithPartialLock: 'LOAD_ALL_WITH_PARTIAL_LOCK'
 } as const;
 
 export type PersistenceLoadingType = typeof PersistenceLoadingType[keyof typeof PersistenceLoadingType];
 
 
+/**
+ * 
+ * @export
+ * @interface PublishToInternalChannelRequest
+ */
+export interface PublishToInternalChannelRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof PublishToInternalChannelRequest
+     */
+    'workflowId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof PublishToInternalChannelRequest
+     */
+    'workflowRunId'?: string;
+    /**
+     * 
+     * @type {Array<InterStateChannelPublishing>}
+     * @memberof PublishToInternalChannelRequest
+     */
+    'messages'?: Array<InterStateChannelPublishing>;
+}
 /**
  * 
  * @export
@@ -567,13 +658,25 @@ export interface SignalCommand {
      * @type {string}
      * @memberof SignalCommand
      */
-    'commandId': string;
+    'commandId'?: string;
     /**
      * 
      * @type {string}
      * @memberof SignalCommand
      */
     'signalChannelName': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof SignalCommand
+     */
+    'atLeast'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof SignalCommand
+     */
+    'atMost'?: number;
 }
 /**
  * 
@@ -645,6 +748,12 @@ export interface StateDecision {
      * @memberof StateDecision
      */
     'nextStates'?: Array<StateMovement>;
+    /**
+     * 
+     * @type {WorkflowConditionalClose}
+     * @memberof StateDecision
+     */
+    'conditionalClose'?: WorkflowConditionalClose;
 }
 /**
  * 
@@ -670,6 +779,12 @@ export interface StateMovement {
      * @memberof StateMovement
      */
     'stateOptions'?: WorkflowStateOptions;
+    /**
+     * 
+     * @type {string}
+     * @memberof StateMovement
+     */
+    'waitForKey'?: string;
 }
 /**
  * 
@@ -682,13 +797,13 @@ export interface TimerCommand {
      * @type {string}
      * @memberof TimerCommand
      */
-    'commandId': string;
+    'commandId'?: string;
     /**
      * 
      * @type {number}
      * @memberof TimerCommand
      */
-    'firingUnixTimestampSeconds': number;
+    'durationSeconds': number;
 }
 /**
  * 
@@ -728,6 +843,25 @@ export type TimerStatus = typeof TimerStatus[keyof typeof TimerStatus];
 /**
  * 
  * @export
+ * @interface TriggerContinueAsNewRequest
+ */
+export interface TriggerContinueAsNewRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof TriggerContinueAsNewRequest
+     */
+    'workflowId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TriggerContinueAsNewRequest
+     */
+    'workflowRunId'?: string;
+}
+/**
+ * 
+ * @export
  * @enum {string}
  */
 
@@ -761,15 +895,76 @@ export interface WorkerErrorResponse {
 /**
  * 
  * @export
+ * @interface WorkflowAlreadyStartedOptions
+ */
+export interface WorkflowAlreadyStartedOptions {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowAlreadyStartedOptions
+     */
+    'ignoreAlreadyStartedError': boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowAlreadyStartedOptions
+     */
+    'requestId'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface WorkflowConditionalClose
+ */
+export interface WorkflowConditionalClose {
+    /**
+     * 
+     * @type {WorkflowConditionalCloseType}
+     * @memberof WorkflowConditionalClose
+     */
+    'conditionalCloseType'?: WorkflowConditionalCloseType;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowConditionalClose
+     */
+    'channelName'?: string;
+    /**
+     * 
+     * @type {EncodedObject}
+     * @memberof WorkflowConditionalClose
+     */
+    'closeInput'?: EncodedObject;
+}
+
+
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
+export const WorkflowConditionalCloseType = {
+    ForceCompleteOnInternalChannelEmpty: 'FORCE_COMPLETE_ON_INTERNAL_CHANNEL_EMPTY',
+    ForceCompleteOnSignalChannelEmpty: 'FORCE_COMPLETE_ON_SIGNAL_CHANNEL_EMPTY',
+    GracefulCompleteOnAllChannelsEmpty: 'GRACEFUL_COMPLETE_ON_ALL_CHANNELS_EMPTY'
+} as const;
+
+export type WorkflowConditionalCloseType = typeof WorkflowConditionalCloseType[keyof typeof WorkflowConditionalCloseType];
+
+
+/**
+ * 
+ * @export
  * @interface WorkflowConfig
  */
 export interface WorkflowConfig {
     /**
      * 
-     * @type {boolean}
+     * @type {ExecutingStateIdMode}
      * @memberof WorkflowConfig
      */
-    'disableSystemSearchAttribute'?: boolean;
+    'executingStateIdMode'?: ExecutingStateIdMode;
     /**
      * 
      * @type {number}
@@ -782,7 +977,21 @@ export interface WorkflowConfig {
      * @memberof WorkflowConfig
      */
     'continueAsNewPageSizeInBytes'?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowConfig
+     */
+    'optimizeActivity'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowConfig
+     */
+    'optimizeTimer'?: boolean;
 }
+
+
 /**
  * 
  * @export
@@ -873,8 +1082,9 @@ export interface WorkflowDumpResponse {
 export const WorkflowErrorType = {
     StateDecisionFailingWorkflowErrorType: 'STATE_DECISION_FAILING_WORKFLOW_ERROR_TYPE',
     ClientApiFailingWorkflowErrorType: 'CLIENT_API_FAILING_WORKFLOW_ERROR_TYPE',
-    StateApiFailMaxOutRetryErrorType: 'STATE_API_FAIL_MAX_OUT_RETRY_ERROR_TYPE',
+    StateApiFailErrorType: 'STATE_API_FAIL_ERROR_TYPE',
     InvalidUserWorkflowCodeErrorType: 'INVALID_USER_WORKFLOW_CODE_ERROR_TYPE',
+    RpcAcquireLockFailure: 'RPC_ACQUIRE_LOCK_FAILURE',
     ServerInternalErrorType: 'SERVER_INTERNAL_ERROR_TYPE'
 } as const;
 
@@ -905,6 +1115,12 @@ export interface WorkflowGetDataObjectsRequest {
      * @memberof WorkflowGetDataObjectsRequest
      */
     'keys'?: Array<string>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowGetDataObjectsRequest
+     */
+    'useMemoForDataAttributes'?: boolean;
 }
 /**
  * 
@@ -1087,6 +1303,12 @@ export interface WorkflowResetRequest {
      * @memberof WorkflowResetRequest
      */
     'skipSignalReapply'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowResetRequest
+     */
+    'skipUpdateReapply'?: boolean;
 }
 
 
@@ -1199,6 +1421,18 @@ export interface WorkflowRpcRequest {
      * @memberof WorkflowRpcRequest
      */
     'timeoutSeconds'?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowRpcRequest
+     */
+    'useMemoForDataAttributes'?: boolean;
+    /**
+     * 
+     * @type {Array<SearchAttributeKeyAndType>}
+     * @memberof WorkflowRpcRequest
+     */
+    'searchAttributes'?: Array<SearchAttributeKeyAndType>;
 }
 /**
  * 
@@ -1275,6 +1509,56 @@ export interface WorkflowSearchResponseEntry {
      * @memberof WorkflowSearchResponseEntry
      */
     'workflowRunId': string;
+}
+/**
+ * 
+ * @export
+ * @interface WorkflowSetDataObjectsRequest
+ */
+export interface WorkflowSetDataObjectsRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowSetDataObjectsRequest
+     */
+    'workflowId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowSetDataObjectsRequest
+     */
+    'workflowRunId'?: string;
+    /**
+     * 
+     * @type {Array<KeyValue>}
+     * @memberof WorkflowSetDataObjectsRequest
+     */
+    'objects'?: Array<KeyValue>;
+}
+/**
+ * 
+ * @export
+ * @interface WorkflowSetSearchAttributesRequest
+ */
+export interface WorkflowSetSearchAttributesRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowSetSearchAttributesRequest
+     */
+    'workflowId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowSetSearchAttributesRequest
+     */
+    'workflowRunId'?: string;
+    /**
+     * 
+     * @type {Array<SearchAttribute>}
+     * @memberof WorkflowSetSearchAttributesRequest
+     */
+    'searchAttributes'?: Array<SearchAttribute>;
 }
 /**
  * 
@@ -1364,6 +1648,12 @@ export interface WorkflowStartOptions {
     'cronSchedule'?: string;
     /**
      * 
+     * @type {number}
+     * @memberof WorkflowStartOptions
+     */
+    'workflowStartDelaySeconds'?: number;
+    /**
+     * 
      * @type {WorkflowRetryPolicy}
      * @memberof WorkflowStartOptions
      */
@@ -1376,10 +1666,28 @@ export interface WorkflowStartOptions {
     'searchAttributes'?: Array<SearchAttribute>;
     /**
      * 
+     * @type {Array<KeyValue>}
+     * @memberof WorkflowStartOptions
+     */
+    'dataAttributes'?: Array<KeyValue>;
+    /**
+     * 
      * @type {WorkflowConfig}
      * @memberof WorkflowStartOptions
      */
     'workflowConfigOverride'?: WorkflowConfig;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof WorkflowStartOptions
+     */
+    'useMemoForDataAttributes'?: boolean;
+    /**
+     * 
+     * @type {WorkflowAlreadyStartedOptions}
+     * @memberof WorkflowStartOptions
+     */
+    'workflowAlreadyStartedOptions'?: WorkflowAlreadyStartedOptions;
 }
 
 
@@ -1419,6 +1727,18 @@ export interface WorkflowStartRequest {
      * @memberof WorkflowStartRequest
      */
     'startStateId'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof WorkflowStartRequest
+     */
+    'waitForCompletionStateIds'?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof WorkflowStartRequest
+     */
+    'waitForCompletionStateExecutionIds'?: Array<string>;
     /**
      * 
      * @type {EncodedObject}
@@ -1514,6 +1834,12 @@ export interface WorkflowStateExecuteRequest {
 export interface WorkflowStateExecuteResponse {
     /**
      * 
+     * @type {string}
+     * @memberof WorkflowStateExecuteResponse
+     */
+    'localActivityInput'?: string;
+    /**
+     * 
      * @type {StateDecision}
      * @memberof WorkflowStateExecuteResponse
      */
@@ -1566,13 +1892,31 @@ export interface WorkflowStateOptions {
      * @type {PersistenceLoadingPolicy}
      * @memberof WorkflowStateOptions
      */
+    'waitUntilApiSearchAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
+    /**
+     * 
+     * @type {PersistenceLoadingPolicy}
+     * @memberof WorkflowStateOptions
+     */
+    'executeApiSearchAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
+    /**
+     * 
+     * @type {PersistenceLoadingPolicy}
+     * @memberof WorkflowStateOptions
+     */
     'dataAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
     /**
      * 
-     * @type {CommandCarryOverPolicy}
+     * @type {PersistenceLoadingPolicy}
      * @memberof WorkflowStateOptions
      */
-    'commandCarryOverPolicy'?: CommandCarryOverPolicy;
+    'waitUntilApiDataAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
+    /**
+     * 
+     * @type {PersistenceLoadingPolicy}
+     * @memberof WorkflowStateOptions
+     */
+    'executeApiDataAttributesLoadingPolicy'?: PersistenceLoadingPolicy;
     /**
      * 
      * @type {number}
@@ -1603,6 +1947,24 @@ export interface WorkflowStateOptions {
      * @memberof WorkflowStateOptions
      */
     'waitUntilApiFailurePolicy'?: WaitUntilApiFailurePolicy;
+    /**
+     * 
+     * @type {ExecuteApiFailurePolicy}
+     * @memberof WorkflowStateOptions
+     */
+    'executeApiFailurePolicy'?: ExecuteApiFailurePolicy;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowStateOptions
+     */
+    'executeApiFailureProceedStateId'?: string;
+    /**
+     * 
+     * @type {WorkflowStateOptions}
+     * @memberof WorkflowStateOptions
+     */
+    'executeApiFailureProceedStateOptions'?: WorkflowStateOptions;
     /**
      * 
      * @type {boolean}
@@ -1661,6 +2023,12 @@ export interface WorkflowStateWaitUntilRequest {
  * @interface WorkflowStateWaitUntilResponse
  */
 export interface WorkflowStateWaitUntilResponse {
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowStateWaitUntilResponse
+     */
+    'localActivityInput'?: string;
     /**
      * 
      * @type {Array<SearchAttribute>}
@@ -1768,6 +2136,56 @@ export type WorkflowStopType = typeof WorkflowStopType[keyof typeof WorkflowStop
 /**
  * 
  * @export
+ * @interface WorkflowWaitForStateCompletionRequest
+ */
+export interface WorkflowWaitForStateCompletionRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowWaitForStateCompletionRequest
+     */
+    'workflowId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowWaitForStateCompletionRequest
+     */
+    'stateExecutionId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowWaitForStateCompletionRequest
+     */
+    'stateId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof WorkflowWaitForStateCompletionRequest
+     */
+    'waitForKey'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof WorkflowWaitForStateCompletionRequest
+     */
+    'waitTimeSeconds'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface WorkflowWaitForStateCompletionResponse
+ */
+export interface WorkflowWaitForStateCompletionResponse {
+    /**
+     * 
+     * @type {StateCompletionOutput}
+     * @memberof WorkflowWaitForStateCompletionResponse
+     */
+    'stateCompletionOutput'?: StateCompletionOutput;
+}
+/**
+ * 
+ * @export
  * @interface WorkflowWorkerRpcRequest
  */
 export interface WorkflowWorkerRpcRequest {
@@ -1807,6 +2225,18 @@ export interface WorkflowWorkerRpcRequest {
      * @memberof WorkflowWorkerRpcRequest
      */
     'dataAttributes'?: Array<KeyValue>;
+    /**
+     * 
+     * @type {{ [key: string]: ChannelInfo; }}
+     * @memberof WorkflowWorkerRpcRequest
+     */
+    'signalChannelInfos'?: { [key: string]: ChannelInfo; };
+    /**
+     * 
+     * @type {{ [key: string]: ChannelInfo; }}
+     * @memberof WorkflowWorkerRpcRequest
+     */
+    'internalChannelInfos'?: { [key: string]: ChannelInfo; };
 }
 /**
  * 
@@ -1900,7 +2330,7 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary get workflow data objects
+         * @summary get workflow data objects aka data attributes
          * @param {WorkflowGetDataObjectsRequest} [workflowGetDataObjectsRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1926,6 +2356,40 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(workflowGetDataObjectsRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary set workflow data objects aka data attributes
+         * @param {WorkflowSetDataObjectsRequest} [workflowSetDataObjectsRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowDataobjectsSetPost: async (workflowSetDataObjectsRequest?: WorkflowSetDataObjectsRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/workflow/dataobjects/set`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(workflowSetDataObjectsRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2028,6 +2492,40 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(workflowDumpRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary signal a workflow
+         * @param {PublishToInternalChannelRequest} [publishToInternalChannelRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowPublishToInternalChannelPost: async (publishToInternalChannelRequest?: PublishToInternalChannelRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/workflow/publishToInternalChannel`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(publishToInternalChannelRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2164,6 +2662,40 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(workflowGetSearchAttributesRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary set workflow search attributes
+         * @param {WorkflowSetSearchAttributesRequest} [workflowSetSearchAttributesRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowSearchattributesSetPost: async (workflowSetSearchAttributesRequest?: WorkflowSetSearchAttributesRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/workflow/searchattributes/set`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(workflowSetSearchAttributesRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2376,6 +2908,73 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary trigger ContinueAsNew for a workflow
+         * @param {TriggerContinueAsNewRequest} [triggerContinueAsNewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowTriggerContinueAsNewPost: async (triggerContinueAsNewRequest?: TriggerContinueAsNewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/workflow/triggerContinueAsNew`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(triggerContinueAsNewRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {WorkflowWaitForStateCompletionRequest} [workflowWaitForStateCompletionRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowWaitForStateCompletionPost: async (workflowWaitForStateCompletionRequest?: WorkflowWaitForStateCompletionRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/workflow/waitForStateCompletion`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(workflowWaitForStateCompletionRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary for invoking workflow RPC API in the worker
          * @param {WorkflowWorkerRpcRequest} [workflowWorkerRpcRequest] 
          * @param {*} [options] Override http request option.
@@ -2408,6 +3007,36 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary return health info of the server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        infoHealthcheckGet: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/info/healthcheck`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -2431,13 +3060,24 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary get workflow data objects
+         * @summary get workflow data objects aka data attributes
          * @param {WorkflowGetDataObjectsRequest} [workflowGetDataObjectsRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         async apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest?: WorkflowGetDataObjectsRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowGetDataObjectsResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
+         * @summary set workflow data objects aka data attributes
+         * @param {WorkflowSetDataObjectsRequest} [workflowSetDataObjectsRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest?: WorkflowSetDataObjectsRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
@@ -2471,6 +3111,17 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          */
         async apiV1WorkflowInternalDumpPost(workflowDumpRequest?: WorkflowDumpRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowDumpResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowInternalDumpPost(workflowDumpRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
+         * @summary signal a workflow
+         * @param {PublishToInternalChannelRequest} [publishToInternalChannelRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest?: PublishToInternalChannelRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
@@ -2515,6 +3166,17 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          */
         async apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest?: WorkflowGetSearchAttributesRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowGetSearchAttributesResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
+         * @summary set workflow search attributes
+         * @param {WorkflowSetSearchAttributesRequest} [workflowSetSearchAttributesRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest?: WorkflowSetSearchAttributesRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
@@ -2585,6 +3247,27 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary trigger ContinueAsNew for a workflow
+         * @param {TriggerContinueAsNewRequest} [triggerContinueAsNewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest?: TriggerContinueAsNewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
+         * @param {WorkflowWaitForStateCompletionRequest} [workflowWaitForStateCompletionRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest?: WorkflowWaitForStateCompletionRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowWaitForStateCompletionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
          * @summary for invoking workflow RPC API in the worker
          * @param {WorkflowWorkerRpcRequest} [workflowWorkerRpcRequest] 
          * @param {*} [options] Override http request option.
@@ -2592,6 +3275,16 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          */
         async apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest?: WorkflowWorkerRpcRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WorkflowWorkerRpcResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest, options);
+            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
+        },
+        /**
+         * 
+         * @summary return health info of the server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async infoHealthcheckGet(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HealthInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.infoHealthcheckGet(options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
     }
@@ -2616,13 +3309,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
-         * @summary get workflow data objects
+         * @summary get workflow data objects aka data attributes
          * @param {WorkflowGetDataObjectsRequest} [workflowGetDataObjectsRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest?: WorkflowGetDataObjectsRequest, options?: any): AxiosPromise<WorkflowGetDataObjectsResponse> {
             return localVarFp.apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary set workflow data objects aka data attributes
+         * @param {WorkflowSetDataObjectsRequest} [workflowSetDataObjectsRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest?: WorkflowSetDataObjectsRequest, options?: any): AxiosPromise<void> {
+            return localVarFp.apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2653,6 +3356,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          */
         apiV1WorkflowInternalDumpPost(workflowDumpRequest?: WorkflowDumpRequest, options?: any): AxiosPromise<WorkflowDumpResponse> {
             return localVarFp.apiV1WorkflowInternalDumpPost(workflowDumpRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary signal a workflow
+         * @param {PublishToInternalChannelRequest} [publishToInternalChannelRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest?: PublishToInternalChannelRequest, options?: any): AxiosPromise<void> {
+            return localVarFp.apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2693,6 +3406,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          */
         apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest?: WorkflowGetSearchAttributesRequest, options?: any): AxiosPromise<WorkflowGetSearchAttributesResponse> {
             return localVarFp.apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary set workflow search attributes
+         * @param {WorkflowSetSearchAttributesRequest} [workflowSetSearchAttributesRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest?: WorkflowSetSearchAttributesRequest, options?: any): AxiosPromise<void> {
+            return localVarFp.apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2756,6 +3479,25 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary trigger ContinueAsNew for a workflow
+         * @param {TriggerContinueAsNewRequest} [triggerContinueAsNewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest?: TriggerContinueAsNewRequest, options?: any): AxiosPromise<void> {
+            return localVarFp.apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {WorkflowWaitForStateCompletionRequest} [workflowWaitForStateCompletionRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest?: WorkflowWaitForStateCompletionRequest, options?: any): AxiosPromise<WorkflowWaitForStateCompletionResponse> {
+            return localVarFp.apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary for invoking workflow RPC API in the worker
          * @param {WorkflowWorkerRpcRequest} [workflowWorkerRpcRequest] 
          * @param {*} [options] Override http request option.
@@ -2763,6 +3505,15 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          */
         apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest?: WorkflowWorkerRpcRequest, options?: any): AxiosPromise<WorkflowWorkerRpcResponse> {
             return localVarFp.apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary return health info of the server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        infoHealthcheckGet(options?: any): AxiosPromise<HealthInfo> {
+            return localVarFp.infoHealthcheckGet(options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -2788,7 +3539,7 @@ export class DefaultApi extends BaseAPI {
 
     /**
      * 
-     * @summary get workflow data objects
+     * @summary get workflow data objects aka data attributes
      * @param {WorkflowGetDataObjectsRequest} [workflowGetDataObjectsRequest] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2796,6 +3547,18 @@ export class DefaultApi extends BaseAPI {
      */
     public apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest?: WorkflowGetDataObjectsRequest, options?: AxiosRequestConfig) {
         return DefaultApiFp(this.configuration).apiV1WorkflowDataobjectsGetPost(workflowGetDataObjectsRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary set workflow data objects aka data attributes
+     * @param {WorkflowSetDataObjectsRequest} [workflowSetDataObjectsRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest?: WorkflowSetDataObjectsRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowDataobjectsSetPost(workflowSetDataObjectsRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2832,6 +3595,18 @@ export class DefaultApi extends BaseAPI {
      */
     public apiV1WorkflowInternalDumpPost(workflowDumpRequest?: WorkflowDumpRequest, options?: AxiosRequestConfig) {
         return DefaultApiFp(this.configuration).apiV1WorkflowInternalDumpPost(workflowDumpRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary signal a workflow
+     * @param {PublishToInternalChannelRequest} [publishToInternalChannelRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest?: PublishToInternalChannelRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowPublishToInternalChannelPost(publishToInternalChannelRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2880,6 +3655,18 @@ export class DefaultApi extends BaseAPI {
      */
     public apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest?: WorkflowGetSearchAttributesRequest, options?: AxiosRequestConfig) {
         return DefaultApiFp(this.configuration).apiV1WorkflowSearchattributesGetPost(workflowGetSearchAttributesRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary set workflow search attributes
+     * @param {WorkflowSetSearchAttributesRequest} [workflowSetSearchAttributesRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest?: WorkflowSetSearchAttributesRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowSearchattributesSetPost(workflowSetSearchAttributesRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2956,6 +3743,29 @@ export class DefaultApi extends BaseAPI {
 
     /**
      * 
+     * @summary trigger ContinueAsNew for a workflow
+     * @param {TriggerContinueAsNewRequest} [triggerContinueAsNewRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest?: TriggerContinueAsNewRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowTriggerContinueAsNewPost(triggerContinueAsNewRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {WorkflowWaitForStateCompletionRequest} [workflowWaitForStateCompletionRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest?: WorkflowWaitForStateCompletionRequest, options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).apiV1WorkflowWaitForStateCompletionPost(workflowWaitForStateCompletionRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary for invoking workflow RPC API in the worker
      * @param {WorkflowWorkerRpcRequest} [workflowWorkerRpcRequest] 
      * @param {*} [options] Override http request option.
@@ -2964,6 +3774,17 @@ export class DefaultApi extends BaseAPI {
      */
     public apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest?: WorkflowWorkerRpcRequest, options?: AxiosRequestConfig) {
         return DefaultApiFp(this.configuration).apiV1WorkflowWorkerRpcPost(workflowWorkerRpcRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary return health info of the server
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DefaultApi
+     */
+    public infoHealthcheckGet(options?: AxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).infoHealthcheckGet(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

@@ -14,6 +14,33 @@ export class CommandRequest {
         this.commandWaitingType = commandWaitingType;
     }
 
+    /** Wait until every command completes. */
+    public static forAllCommandCompleted(...commands: BaseCommand[]): CommandRequest {
+        return new CommandRequest(commands, [], CommandWaitingType.AllCompleted);
+    }
+
+    /** Wait until any single command completes. */
+    public static forAnyCommandCompleted(...commands: BaseCommand[]): CommandRequest {
+        return new CommandRequest(commands, [], CommandWaitingType.AnyCompleted);
+    }
+
+    /**
+     * Wait until any of the given command-id combinations all complete. Each inner array is a set
+     * of command ids that, when all completed, satisfies the wait.
+     */
+    public static forAnyCommandCombinationCompleted(
+        commandIdCombinations: string[][],
+        ...commands: BaseCommand[]
+    ): CommandRequest {
+        const combinations: CommandCombination[] = commandIdCombinations.map((commandIds) => ({ commandIds }));
+        return new CommandRequest(commands, combinations, CommandWaitingType.AnyCombinationCompleted);
+    }
+
+    /** An empty command request; the state proceeds straight to execute. */
+    public static empty(): CommandRequest {
+        return CommandRequest.EMPTY;
+    }
+
     get getCommands(): BaseCommand[] {
         return this.commands;
     }

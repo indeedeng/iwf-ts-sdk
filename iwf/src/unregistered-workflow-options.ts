@@ -22,6 +22,7 @@ export class UnregisteredWorkflowOptions {
         this._workflowRetryPolicy = workflowRetryPolicy;
         this._workflowStateOptions = workflowStateOptions;
         this._initialSearchAttributes = initialSearchAttributes || List();
+        this._workflowConfigOverride = workflowConfigOverride;
     }
 
     get workflowIdReusePolicy(): IDReusePolicy | undefined {

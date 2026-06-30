@@ -1,16 +1,16 @@
-import { ObjectWorkflow } from "../../iwf/src/object-workflow";
-import { StateDefBuilder } from "../../iwf/src/state-definition";
+import { ObjectWorkflow, StateDef } from "../../iwf";
 import { BasicWorkflowState1 } from "./basic-workflow-state1";
 import { BasicWorkflowState2 } from "./basic-workflow-state2";
 
 export class BasicWorkflow implements ObjectWorkflow {
-    getWorkflowStates()  {
+    getWorkflowStates(): StateDef[] {
         return [
-            new StateDefBuilder().setWorkflowState(new BasicWorkflowState1()).build(),
-            new StateDefBuilder().setWorkflowState(new BasicWorkflowState2()).build()
+            StateDef.startingState(new BasicWorkflowState1()),
+            StateDef.nonStartingState(new BasicWorkflowState2()),
         ];
     }
-    getWorkflowType() {
+
+    getWorkflowType(): string {
         return "basic";
     }
 }
