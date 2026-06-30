@@ -1,8 +1,22 @@
-# iWF SDK Feature Catalog
+# iWF TypeScript SDK Reference
 
-A consolidated catalog of the features provided by the three completed iWF (Indeed Workflow Framework) SDKs — **Java**, **Python**, and **Go**. This document is intended as a reference for understanding the full feature surface of the SDK and as a checklist for completing the **TypeScript** SDK.
+Reference for the **iWF (Indeed Workflow Framework) TypeScript SDK**. Sections 1–15 describe the SDK's
+functionality and API in TypeScript terms; §16 records how it compares to the canonical Java SDK; §17
+covers the validation it enforces; §18 lists TS-specific behaviors.
 
-iWF is a client framework on top of a workflow engine (Cadence/Temporal). A user defines a **workflow** made up of **states**; each state can wait on **commands** (timers, signals, internal-channel messages) and then **execute** business logic that reads/writes **persistence** (data attributes & search attributes), communicates over channels, and decides the next state(s). A **client** drives workflows from the outside (start, signal, query, RPC, etc.), and a **worker service** handles callbacks from the engine.
+iWF is a client framework on top of a workflow engine (Cadence/Temporal). You define a **workflow**
+made of **states**; each state can wait on **commands** (timers, signals, internal-channel messages)
+and then **execute** business logic that reads/writes **persistence** (data & search attributes),
+communicates over **channels**, and returns a **decision** for what runs next. A **`Client`** drives
+workflows from the outside (start, signal, query, RPC, reset, …), and a **`WorkerService`** handles the
+engine's callbacks into your worker.
+
+Everything public is exported from the `iwf/index.ts` barrel. Generated wire types live in `gen/iwfidl`
+(pinned to IDL `1.0.0-121`); the SDK layer wraps them with idiomatic TypeScript.
+
+```ts
+import { Client, Registry, WorkerService, ObjectWorkflow, WorkflowState, StateDecision } from "iwf";
+```
 
 ---
 
@@ -23,279 +37,386 @@ iWF is a client framework on top of a workflow engine (Cadence/Temporal). A user
 14. [Errors](#14-errors)
 15. [Cross-Language Feature Matrix](#15-cross-language-feature-matrix)
 16. [TS ↔ Java Parity Notes](#16-ts--java-parity-notes)
+17. [Validation & Guardrails](#17-validation--guardrails)
+18. [TypeScript SDK Specifics](#18-typescript-sdk-specifics)
 
 ---
 
 ## 1. Core Concepts & Definition Interfaces
 
-Every SDK exposes the same two core abstractions a user implements, plus a registry and clients.
+You implement two abstractions — a **workflow** and its **states** — register them, and drive them with
+a client. The core types (all exported from `iwf`):
 
-| Concept | Java | Python | Go |
-|---|---|---|---|
-| Workflow definition | `ObjectWorkflow` interface | `ObjectWorkflow` base class | `ObjectWorkflow` interface |
-| State definition | `WorkflowState<I>` | `WorkflowState[T]` | `WorkflowState` interface |
-| State wrapper (startable flag) | `StateDef` (`startingState` / `nonStartingState`) | `StateDef` / `StateSchema` (`with_starting_state` / `no_starting_state`) | `StateDef` (`StartingStateDef` / `NonStartingStateDef`) |
-| Typed client | `Client` | `Client` | `Client` |
-| Untyped/low-level client | `UnregisteredClient` | `UnregisteredClient` | `UnregisteredClient` |
-| Registry | `Registry` | `Registry` | `Registry` |
-| Worker callback handler | `WorkerService` | `WorkerService` | `WorkerService` |
+| Concept | Type | Notes |
+|---|---|---|
+| Workflow definition | `ObjectWorkflow` (interface) | declares states, schemas, options |
+| State definition | `WorkflowState` (interface) | `waitUntil?` + `execute` |
+| State wrapper (startable flag) | `StateDef` (+ `StateDefBuilder`) | `StateDef.startingState(...)` / `StateDef.nonStartingState(...)` |
+| Registry | `Registry` | `addWorkflow(s)` + lookups |
+| Registry-aware client | `Client` | encodes/decodes, resolves types from the registry |
+| Low-level client | `UnregisteredClient` | raw IDL/`EncodedObject` types, no registry |
+| Worker callback handler | `WorkerService` | handles waitUntil / execute / RPC callbacks |
 
-**`ObjectWorkflow` declares:**
-- The set of states (`getWorkflowStates` / `get_workflow_states` / `GetWorkflowStates`)
-- The persistence schema — data & search attributes (`getPersistenceSchema` / `get_persistence_schema` / `GetPersistenceSchema`)
-- The communication schema — signal channels, internal channels, and (Java/Go) RPCs (`getCommunicationSchema` / `get_communication_schema` / `GetCommunicationSchema`)
-- Persistence options, including caching (`getPersistenceOptions` / `get_persistence_options`)
-- An optional workflow type name override (defaults to the class name)
+**`ObjectWorkflow`** declares the workflow's shape:
+
+```ts
+interface ObjectWorkflow {
+  getWorkflowStates(): StateDef[];
+  getWorkflowType(): string;                       // explicit, unique type name
+  getPersistenceSchema?(): PersistenceFieldDef[];  // data & search attributes
+  getCommunicationSchema?(): CommunicationMethodDef[]; // signal/internal channels + RPCs
+  getPersistenceOptions?(): PersistenceOptions;    // e.g. data-attribute caching
+}
+```
+
+Use the `getPersistenceSchema` / `getCommunicationSchema` / `getPersistenceOptions` free functions
+(also exported) to read a workflow's schema with the optional methods defaulted (empty / `getDefault()`).
 
 ---
 
 ## 2. Workflow States: WaitUntil / Execute
 
-Each `WorkflowState` has up to two lifecycle methods:
+A `WorkflowState` has a `stateId` getter and up to two lifecycle methods:
 
-- **`waitUntil` (optional)** — returns a `CommandRequest` describing the commands (timers/signals/channel messages) the state should wait for before executing. If not implemented (or marked skipped), the engine goes straight to `execute`.
-  - Skip mechanisms: Java `shouldSkipWaitUntil`; Python `should_skip_wait_until`; Go `NoWaitUntil` marker / `WorkflowStateDefaultsNoWaitUntil`.
-- **`execute` (required)** — runs business logic given the `CommandResults`, reads/writes persistence and communication, and returns a `StateDecision` (next state(s) or workflow completion).
+```ts
+interface WorkflowState {
+  get stateId(): string;
+  getStateOptions?(): WorkflowStateOptions | undefined;
+  waitUntil?(ctx: Context, input: unknown, p: Persistence, c: Communication):
+    CommandRequest | Promise<CommandRequest>;
+  execute(ctx: Context, input: unknown, results: CommandResults, p: Persistence, c: Communication):
+    StateDecision | Promise<StateDecision>;
+}
+```
 
-Both methods receive a **context**, the typed **input**, **persistence**, and **communication** handles; `execute` additionally receives **command results**.
+- **`waitUntil` (optional)** — returns a `CommandRequest` describing the commands (timers / signals /
+  internal-channel messages) to wait for before executing. **Omit the method entirely** to skip the
+  waitUntil phase and go straight to `execute` (`shouldSkipWaitUntil(state)` reports this).
+- **`execute` (required)** — runs business logic given the `CommandResults`, reads/writes persistence
+  and communication, and returns a `StateDecision` (next state(s) or workflow completion).
 
-**Context fields** (`Context` / `WorkflowContext`): workflow ID, workflow run ID, workflow type, workflow start timestamp, state execution ID, first-attempt timestamp, attempt number, and child-workflow request ID. Each SDK exposes the same essential set.
+Both may return a value **or a `Promise`** — the worker awaits them. `input` is the decoded native
+value typed as `unknown`; cast it to your expected type.
 
-**Default-behavior helpers** to reduce boilerplate:
-- Java: static `getDefaultStateId`, default `getStateOptions`.
-- Go: `WorkflowDefaults`, `WorkflowStateDefaults`, `WorkflowStateDefaultsNoWaitUntil`, `DefaultStateId`, `DefaultStateOptions`, `EmptyPersistenceSchema`, `EmptyCommunicationSchema`, `EmptyWorkflowStates`.
+**`Context`** (passed to every handler) exposes: `workflowId`, `workflowRunId`, `workflowType?`,
+`workflowStartTimestampSeconds`, `stateExecutionId?`, `firstAttemptTimestampSeconds?`, `attempt?`, and
+`childWorkflowRequestId?` (a stable `runId-stateExecutionId` for idempotently starting child workflows).
 
 ---
 
 ## 3. Commands & Command Results
 
-States wait on **commands** in `waitUntil`. Three command types exist across all SDKs:
+A `waitUntil` returns a `CommandRequest` built from one or more commands. Three command types, each
+created by a static factory with an optional trailing **command ID** (used to reference it in results
+or combinations):
 
-| Command | Java | Python | Go |
-|---|---|---|---|
-| Timer | `TimerCommand.createByDuration` | `TimerCommand.by_seconds` | `NewTimerCommandByDuration` |
-| Signal channel | `SignalCommand.create` | `SignalChannelCommand.by_name` | `NewSignalCommand` |
-| Internal channel | `InternalChannelCommand.create` | `InternalChannelCommand.by_name` | `NewInternalChannelCommand` |
+```ts
+TimerCommand.byDuration(durationSeconds, commandId?)
+SignalCommand.byName(signalChannelName, commandId?)
+InternalChannelCommand.byName(channelName, commandId?)
+```
 
-Each command may have an optional **command ID** for referencing it in results or combinations.
+**`CommandRequest` factories** set the trigger condition:
+- `CommandRequest.forAllCommandCompleted(...commands)` — wait for every command.
+- `CommandRequest.forAnyCommandCompleted(...commands)` — wait for the first.
+- `CommandRequest.forAnyCommandCombinationCompleted(idCombinations, ...commands)` — wait for any of the
+  given command-ID combinations (each id must belong to a command in the request, else it throws).
+- `CommandRequest.empty()` — no waiting (proceed straight to execute). A `CommandRequestBuilder` is also available.
 
-**Command waiting types** (the trigger condition that wakes the state):
-- **AllCompleted** — wait for every command.
-- **AnyCompleted** — wait for the first command.
-- **AnyCombinationCompleted** — wait for any of a set of named command-ID combinations.
-
-Built via `CommandRequest` factories:
-- Java: `forAllCommandCompleted`, `forAnyCommandCompleted`, `forAnyCommandCombinationCompleted`, `empty`.
-- Python: `for_all_command_completed`, `for_any_command_completed`, `for_any_command_combination_completed`, `empty`.
-- Go: `AllCommandsCompletedRequest`, `AnyCommandCompletedRequest`, `AnyCommandCombinationsCompletedRequest`, `EmptyCommandRequest`.
-
-**Command results** delivered to `execute` (`CommandResults`): lists of timer / signal / internal-channel results, plus a `waitUntilApiSucceeded` flag. Results carry status enums:
-- **TimerStatus**: SCHEDULED / FIRED.
-- **ChannelRequestStatus**: WAITING / RECEIVED.
-
-Lookup helpers by command ID or channel name are provided (e.g. Java `getSignalValueById`; Go `GetSignalCommandResultByChannel`, `GetInternalChannelCommandResultById`, etc.).
+**`CommandResults`** is delivered to `execute`: `timerResults`, `signalResults`, `internalChannelResults`
+arrays plus the `waitUntilApiSucceeded` flag, with status enums `TimerStatus` (`SCHEDULED`/`FIRED`) and
+`ChannelRequestStatus` (`WAITING`/`RECEIVED`). Lookup helpers: `getSignalValueByCommandId`,
+`getSignalResultByCommandId`, `getInternalChannelValueByCommandId`, `getInternalChannelResultByCommandId`,
+`getTimerResultByCommandId` (return `undefined` when not found).
 
 ---
 
 ## 4. State Decisions & Workflow Completion
 
-`execute` returns a **`StateDecision`** controlling flow:
+`execute` returns a **`StateDecision`**, built via static factories:
 
-- **Single next state** — `singleNextState` / `single_next_state` / `SingleNextState`.
-- **Multiple parallel next states** — `multiNextStates` / `multi_next_states` / `MultiNextStates` / `MultiNextStatesWithInput` / `MultiNextStatesByStateIds`.
-- **Graceful complete** (wait for all running states) — `gracefulCompleteWorkflow` / `graceful_complete_workflow` / `GracefulCompleteWorkflow`.
-- **Force complete** (kill other running states) — `forceCompleteWorkflow` / `force_complete_workflow` / `ForceCompleteWorkflow`.
-- **Force fail** — `forceFailWorkflow` / `force_fail_workflow` / `ForceFailWorkflow`.
-- **Dead end** (terminate this thread without closing workflow) — `deadEnd` / `dead_end` / `DeadEnd`.
+- `StateDecision.singleNextState(stateId, input?, stateOptions?)` — move to one next state.
+- `StateDecision.multiNextStates(...movements)` — fan out to several states in parallel (rejects an
+  empty list; build movements with `StateMovement.create(...)`).
+- `StateDecision.gracefulCompleteWorkflow(output?)` — complete once all running states finish.
+- `StateDecision.forceCompleteWorkflow(output?)` — complete immediately, abandoning other states.
+- `StateDecision.forceFailWorkflow(output?)` — fail the workflow.
+- `StateDecision.deadEnd()` — end this branch without closing the workflow.
 
-**State movements** (`StateMovement`) carry the target state, input, an optional per-transition **state-options override**, and an optional **wait-for key** (lets external callers wait on a specific state execution).
+**`StateMovement`** (`StateMovement.create(stateId, input?, stateOptions?, waitForKey?)`, or
+`StateMovementBuilder`) carries the target state id, input, an optional per-transition state-options
+override, and an optional **wait-for key** that lets external callers block on that specific execution.
+A target state must be registered (otherwise mapping throws) and may not use the reserved `_SYS_` prefix.
 
-**Atomic conditional completion** (Java & Python) — complete the workflow only if a channel is empty, otherwise proceed to a fallback state:
-- `forceCompleteIfInternalChannelEmptyOrElse` / `force_complete_if_internal_channel_empty_or_else`
-- `forceCompleteIfSignalChannelEmptyOrElse` / `force_complete_if_signal_channel_empty_or_else`
-- (Python also exposes `WorkflowConditionalCloseType`.)
-- *Not present in the Go SDK surface mapped here.*
+**Atomic conditional completion** — complete the workflow only if a channel is empty, else proceed to a
+fallback state:
+
+```ts
+StateDecision.forceCompleteIfInternalChannelEmptyOrElse(channelName, completeOutput, orElseStateId, orElseInput?, orElseStateOptions?)
+StateDecision.forceCompleteIfSignalChannelEmptyOrElse(channelName, completeOutput, orElseStateId, orElseInput?, orElseStateOptions?)
+```
+
+These encode a `ConditionalClose` (`WorkflowConditionalCloseType`) on the wire.
 
 ---
 
 ## 5. Persistence: Data Attributes & Search Attributes
 
-Two persistence kinds, plus transient state-local storage:
+The `Persistence` handle (passed to `waitUntil`/`execute`/RPCs) exposes four kinds of state. Reads see
+writes made earlier in the same invocation.
 
-- **Data attributes** — arbitrary serialized key/value state, optionally cached.
-- **Search attributes** — strongly-typed, indexed values queryable via search.
-- **State execution locals** — transient values scoped to a single state execution (passed from `waitUntil` to `execute`).
-- **Record event** — record tracking/debug events.
+- **Data attributes** — arbitrary serialized key/value state, optionally cached:
+  `getDataAttribute<T>(key)` / `setDataAttribute(key, value)`.
+- **Search attributes** — strongly-typed, indexed, queryable values. Typed accessors per value type:
+  `getSearchAttributeInt`/`setSearchAttributeInt` (and `Double`, `Boolean`, `Keyword`, `Text`,
+  `Datetime`, `KeywordArray`). Value types: `INT`, `DOUBLE`, `BOOL`, `KEYWORD`, `TEXT`, `DATETIME`,
+  `KEYWORD_ARRAY` (`SearchAttributeValueType`).
+- **State-execution locals** — transient values scoped to one state execution (pass data from
+  `waitUntil` to `execute`): `getStateExecutionLocal<T>` / `setStateExecutionLocal`.
+- **Record event** — `recordEvent(key, value)` records a tracking/debug event (one per key per invocation).
 
-**Search attribute value types** (all three SDKs): `INT`/Int64, `DOUBLE`, `BOOL`, `KEYWORD`, `TEXT`, `DATETIME`, `KEYWORD_ARRAY`.
+**Schema** — declare attributes with `PersistenceFieldDef` factories in `getPersistenceSchema()`:
 
-**Typed accessors** (representative — naming differs per language):
-`getSearchAttributeInt64`/`Int`, `...Double`, `...Boolean`/`Bool`, `...Keyword`, `...Text`, `...Datetime`, `...KeywordArray`, plus `getDataAttribute`/`setDataAttribute`, `getStateExecutionLocal`/`setStateExecutionLocal`, and `recordEvent`.
+```ts
+PersistenceFieldDef.dataAttributeDef(key)
+PersistenceFieldDef.dataAttributePrefixDef(keyPrefix)   // dynamically-named data attributes
+PersistenceFieldDef.searchAttributeDef(key, valueType)  // search attributes are exact-only
+```
 
-**Schema definition helpers:**
-- Data attribute: Java `DataAttributeDef.create` / `createByPrefix`; Python `PersistenceField.data_attribute_def` / `data_attribute_prefix_def`; Go `DataAttributeDef`.
-- Search attribute: Java `SearchAttributeDef.create`; Python `PersistenceField.search_attribute_def`; Go `SearchAttributeDef`.
-- **Dynamic (prefix-based) attributes** — Java & Python support prefix definitions for dynamically-named attributes; Go defines fields individually.
+**Prefix (dynamic) attributes** — a `dataAttributePrefixDef` lets you use any number of runtime-named
+keys sharing a prefix; the registry validates a key by exact match then prefix. (Search attributes
+have no prefix form — they're indexed/typed.)
 
-**Persistence loading policies** (control what's loaded and locked per API call): `LOAD_ALL_WITHOUT_LOCKING`, `LOAD_NONE`, partial loading, and locking variants (e.g. `ALL_WITH_LOCKING` / `PARTIAL_WITH_LOCKING` / exclusive locks). Configurable globally and per-API (WaitUntil vs Execute) on state options, and on RPCs.
+**Loading policies** (`PersistenceLoadingPolicy` / `PersistenceLoadingType`: `LOAD_ALL_WITHOUT_LOCKING`,
+`LOAD_NONE`, partial, locking variants) control what's loaded/locked per API call — set on
+`WorkflowStateOptions` (combined or per waitUntil/execute) and on `RpcOptions`.
 
-**Caching** — `PersistenceOptions.enableCaching` / `enable_caching` caches data attributes via the engine's memo for high-throughput reads. RPCs can bypass the cache for strong consistency (`bypassCachingForStrongConsistency`).
+**Caching** — `new PersistenceOptions(true)` (via `getPersistenceOptions()`) caches data attributes in
+the engine memo for high-throughput reads; the SDK then seeds from / reads the memo automatically. RPCs
+can bypass it for strong consistency (`RpcOptions.bypassCachingForStrongConsistency`).
+
+> Notes: `setSearchAttributeInt` rejects values past JS safe-integer range (2^53−1); `setSearchAttributeDatetime`
+> wants Unix epoch-seconds or an RFC3339 / Go-layout timestamp. See §17.
 
 ---
 
 ## 6. Communication: Signals & Internal Channels
 
-- **Signal channels** — external events delivered into the workflow (from `Client.signalWorkflow`).
+- **Signal channels** — external events delivered into a running workflow (via `Client.signalWorkflow`).
 - **Internal channels** — inter-state / intra-workflow message passing.
 
-**Channel definition:**
-- Signal: Java `SignalChannelDef.create`/`createByPrefix`; Python `CommunicationMethod.signal_channel_def`; Go `SignalChannelDef`.
-- Internal: Java `InternalChannelDef.create`/`createByPrefix`; Python `CommunicationMethod.internal_channel_def`/`internal_channel_def_by_prefix`; Go `InternalChannelDef`.
-- Java & Python support **prefix-based dynamic channels**.
+**Schema** — declare channels with `CommunicationMethodDef` factories in `getCommunicationSchema()`:
 
-**Communication handle operations** (in-workflow):
-- `publishInternalChannel` / `publish_to_internal_channel` / `PublishInternalChannel` — publish a message to an internal channel.
-- `getInternalChannelSize` / `getSignalChannelSize` (Java & Python) — read current queue size (used for conditional completion).
-- `triggerStateMovements` / `trigger_state_execution` / `TriggerStateMovements` — start new state executions (notably from within an RPC).
+```ts
+CommunicationMethodDef.signalChannelDef(name)        // + signalChannelPrefixDef(namePrefix)
+CommunicationMethodDef.internalChannelDef(name)      // + internalChannelPrefixDef(namePrefix)
+CommunicationMethodDef.rpcMethodDef(name, handler, options?)  // see §7
+```
+
+Channels support **prefix-based dynamic names** (like data attributes); a name is validated by exact
+match then prefix.
+
+**The `Communication` handle** (in `waitUntil`/`execute`/RPCs):
+- `publishInternalChannel(channelName, value?)` — publish a message to an internal channel.
+- `getInternalChannelSize(channelName)` / `getSignalChannelSize(channelName)` — current queue size
+  (e.g. to drive conditional completion). Sizes come from the server-provided channel infos plus
+  messages published earlier in the same invocation.
+- `triggerStateMovements(...movements)` — start new state executions; **only valid inside an RPC**
+  (throws if called from `waitUntil`/`execute`).
+
+Publishing to (or sizing) an undeclared channel throws; a state may not publish to **and** wait on the
+same internal channel in one `waitUntil`. From the client, publish externally with
+`Client.publishToInternalChannel` / `publishToInternalChannelBatch` (§10).
 
 ---
 
 ## 7. RPC
 
-RPCs let external callers invoke a method on a running workflow that can read/write persistence, publish to channels, and trigger state movements — without sending a signal.
+RPCs let external callers invoke a method on a running workflow that can read/write persistence, publish
+to channels, and trigger state movements — without sending a signal.
 
-- **Java** — richest surface: 8 functional-interface variants in `RpcDefinitions` (`RpcFunc0/1`, `RpcProc0/1`, each with a `NoPersistence` variant) covering input/output and persistence presence. Declared with the `@RPC` annotation (timeout, data/search-attribute loading types, partial-loading keys, locking keys, `bypassCachingForStrongConsistency`). Invoked via typed `newRpcStub` + `invokeRPC`.
-- **Python** — `@rpc` decorator (`timeout_seconds`, `data_attribute_loading_policy`, `bypass_caching_for_strong_consistency`). RPC method signature receives `context`, optional `input`, `persistence`, `communication`. Invoked via `Client.invoke_rpc`.
-- **Go** — `RPC` function type `(ctx, input, persistence, communication) -> (output, error)`. Registered with `RPCMethodDef` + `RPCOptions` (timeout, data/search loading policies). Invoked via `InvokeRPC` (typed) or `InvokeRPCByName` (untyped).
+**Define** an RPC in `getCommunicationSchema()` with a single-signature handler:
 
-All three: RPCs can call `TriggerStateMovements` / publish to internal channels, enabling event-driven, externally-controlled state transitions.
+```ts
+type RpcHandler = (ctx: Context, input: unknown, p: Persistence, c: Communication) => unknown | Promise<unknown>;
 
-> RPC was added in the Java/Python/Go SDKs' 2.0-era development plans — it is a core feature the TypeScript SDK will need.
+CommunicationMethodDef.rpcMethodDef("myRpc", handler, options?)  // options: RpcOptions
+```
+
+`RpcOptions`: `timeoutSeconds`, `dataAttributesLoadingPolicy`, `searchAttributesLoadingPolicy`, and
+`bypassCachingForStrongConsistency` (partial-loading / locking keys are expressed on the
+`PersistenceLoadingPolicy` object).
+
+**Invoke** from the client:
+
+```ts
+const result = await client.invokeRpc<TOut>(workflow, workflowId, "myRpc", input?, workflowRunId?);
+```
+
+The client sends the registered search-attribute key-types and computes
+`useMemoForDataAttributes = cachingEnabled && !bypassCachingForStrongConsistency`; loading policy and
+timeout default to `ALL_WITHOUT_LOCKING` / `0` when unset. An RPC handler may
+`communication.triggerStateMovements(...)` to start new states (event-driven transitions).
 
 ---
 
 ## 8. State Options
 
-`WorkflowStateOptions` / `StateOptions` configure an individual state:
+`WorkflowStateOptions` configures one state (returned from `getStateOptions()` or carried as a
+per-movement override on `StateMovement`). It calls `.toIdl()` at mapping time, which also validates it.
 
-- **WaitUntil API**: timeout seconds, retry policy, failure policy (`PROCEED_ON_FAILURE` to continue to execute when retries exhausted — SAGA-style), data/search-attribute loading policy.
-- **Execute API**: timeout seconds, retry policy, failure policy (proceed to a designated recovery state when retries exhausted), data/search-attribute loading policy.
-- **Per-state persistence loading policies** (global and per-API overrides as above).
+- **WaitUntil API**: `waitUntilApiTimeoutSeconds`, `waitUntilApiRetryPolicy`, `waitUntilApiFailurePolicy`
+  (`PROCEED_ON_FAILURE` continues to execute when retries are exhausted — SAGA-style),
+  `waitUntilApiSearchAttributesLoadingPolicy` / `waitUntilApiDataAttributesLoadingPolicy`.
+- **Execute API**: `executeApiTimeoutSeconds`, `executeApiRetryPolicy`, and **execute-failure recovery** —
+  `executeApiFailurePolicy = PROCEED_TO_CONFIGURED_STATE` with `executeApiFailureProceedStateId`
+  (+ optional `executeApiFailureProceedStateOptions`) routes to a recovery state when execute retries
+  are exhausted; `executeApiSearchAttributesLoadingPolicy` / `executeApiDataAttributesLoadingPolicy`.
+- **Combined loading policies**: `searchAttributesLoadingPolicy` / `dataAttributesLoadingPolicy` apply to both APIs.
 
-**Retry policy** fields: initial interval, backoff coefficient, maximum interval, maximum attempts, maximum-attempts duration.
+**`RetryPolicy`** fields: `initialIntervalSeconds`, `backoffCoefficient`, `maximumIntervalSeconds`,
+`maximumAttempts`, `maximumAttemptsDurationSeconds`.
 
-Java & Python additionally support **state options overridden dynamically** per state movement (the override carried on `StateMovement`).
+Validation: a proceed policy (waitUntil or execute) requires a retry policy with a bounded number of
+attempts; the recovery state needs a target id and may not itself declare a proceed policy. The SDK
+also auto-fills the recovery state's `skipWaitUntil`. Per-movement overrides take precedence over a
+state's declared `getStateOptions()`.
 
 ---
 
 ## 9. Workflow Start Options
 
-`WorkflowOptions`:
+`WorkflowOptions` (a plain interface; pass as the last arg to `Client.startWorkflow`):
 
-- **ID reuse policy** — `ALLOW_IF_NO_RUNNING`, `ALLOW_IF_PREVIOUS_EXITS_ABNORMALLY`, `ALLOW_TERMINATE_IF_RUNNING`, `DISALLOW_REUSE` (Java naming: `ALLOW_DUPLICATE` / `REJECT_DUPLICATE` / `REJECT_DUPLICATE_UNTIL_CLOSED`).
-- **Cron schedule** — recurring workflows.
-- **Start delay seconds**.
-- **Workflow retry policy** — whole-workflow retry.
-- **Initial search attributes** & **initial data attributes**.
-- **Wait-for-completion state IDs / state-execution IDs** — `startWorkflow` blocks until the given states complete.
-- **Already-started options** — idempotent start handling (Java/Python).
-- **Workflow config override** — override engine config at start (Java/Python; Go has `UpdateWorkflowConfig` client API).
+- `workflowIdReusePolicy` — `IDReusePolicy` (`ALLOW_IF_NO_RUNNING`, `ALLOW_IF_PREVIOUS_EXITS_ABNORMALLY`,
+  `ALLOW_TERMINATE_IF_RUNNING`, `DISALLOW_REUSE`).
+- `cronSchedule` — recurring workflows (validated client-side).
+- `startDelaySeconds` — delay before the first state runs.
+- `workflowRetryPolicy` — whole-workflow retry (`WorkflowRetryPolicy`).
+- `initialSearchAttributes` (`SearchAttribute[]`) & `initialDataAttributes` (`Map<string, unknown>`) —
+  validated against the registry at start (unknown/mis-typed keys throw).
+- `waitForCompletionStateIds` / `waitForCompletionStateExecutionIds` — make `startWorkflow` block until
+  the given states complete.
+- `workflowAlreadyStartedOptions` — idempotent start (ignore "already started", optionally for a request id).
+- `workflowConfigOverride` — override engine config at start.
+
+When the workflow enables data-attribute caching, `startWorkflow` seeds the memo automatically. A
+workflow with no starting state can be started (it begins idle, e.g. to serve RPCs/signals).
+
+```ts
+await client.startWorkflow(workflow, workflowId, timeoutSeconds, input?, options?);
+```
 
 ---
 
 ## 10. Client API
 
-The typed `Client` (registry-aware) and `UnregisteredClient` (string-based) expose the following. Naming differs per language; capabilities are shared unless noted.
+Construct `new Client(registry, clientOptions)` (registry-aware: encodes/decodes values and resolves
+types from the registry). `Client.getUnregisteredClient()` exposes the low-level `UnregisteredClient`
+(raw IDL/`EncodedObject` types, no registry). Most methods take an optional trailing `workflowRunId` to
+target a specific run.
 
 **Lifecycle**
-- `startWorkflow` — start (with/without input, with/without options).
-- `stopWorkflow` — cancel / terminate / fail (`StopWorkflowOptions` + `WorkflowStopType`).
-- `resetWorkflow` — reset to a point (see §11).
-- `describeWorkflow` — get status / `WorkflowInfo`.
+- `startWorkflow(workflow, workflowId, timeoutSeconds, input?, options?)` → `runId` (§9).
+- `stopWorkflow(workflowId, options?, runId?)` — cancel / fail / terminate (`StopWorkflowOptions` + `WorkflowStopType`).
+- `resetWorkflow(workflowId, options, runId?)` — reset to a point (§11).
+- `describeWorkflow(workflowId, runId?)` — returns the raw `WorkflowGetResponse` (status, etc.).
 
 **Results**
-- `waitForWorkflowCompletion` / `wait_for_workflow_completion` / `GetSimpleWorkflowResult` — long-poll for the single result.
-- Complex/multi-completion results — Java `getComplexWorkflowResultWithWait` / `tryGettingComplexWorkflowResult`; Go `GetComplexWorkflowResults`.
-- Non-blocking try-get (Java `tryGettingSimpleWorkflowResult`).
+- `getSimpleWorkflowResult<T>(workflowId, runId?)` — long-poll for a single-output result.
+- `getComplexWorkflowResults(workflowId, runId?)` — long-poll for multi-state outputs.
+- `waitForWorkflowCompletion(workflowId, runId?)` — block until completion, discard the result.
+- `tryGettingSimpleWorkflowResult<T>` / `tryGettingComplexWorkflowResult` — **non-blocking**; throw
+  `WorkflowUncompletedError` if the workflow hasn't closed yet.
 
 **Signals & channels**
-- `signalWorkflow` — send a signal.
-- Publish to internal channel — Java `publishToInternalChannel` (+ batch variant). *(Java surfaces this on the client; Python/Go primarily publish from within the workflow.)*
+- `signalWorkflow(workflowId, signalChannelName, value?, runId?)`.
+- `publishToInternalChannel(workflowId, channelName, value?, runId?)` and
+  `publishToInternalChannelBatch(workflowId, messages, runId?)`.
 
-**Persistence access (external)**
-- `getWorkflowDataAttributes` / `getAllDataAttributes`, `setWorkflowDataAttributes`.
-- `getWorkflowSearchAttributes` / `getAllSearchAttributes`, `setWorkflowSearchAttributes`.
+**Persistence (external)**
+- `getWorkflowDataAttributes(workflow, workflowId, keys?, runId?)` / `getAllWorkflowDataAttributes(workflow, workflowId, runId?)` / `setWorkflowDataAttributes(workflowId, map, runId?)`.
+- `getWorkflowSearchAttributes(workflow, workflowId, keys, runId?)` / `getAllWorkflowSearchAttributes(workflow, workflowId, runId?)` / `setWorkflowSearchAttributes(workflow, workflowId, map, runId?)`.
 
-**RPC**
-- Invoke RPC — Java `newRpcStub` + `invokeRPC` (8 overloads); Python `invoke_rpc`; Go `InvokeRPC` / `InvokeRPCByName`.
+**RPC** — `invokeRpc<T>(workflow, workflowId, rpcName, input?, runId?)` (§7).
 
-**Search**
-- `searchWorkflow` — SQL-like query over search attributes, with pagination.
+**Search** — `searchWorkflow(query, pageSize?, nextPageToken?)` — SQL-like query over search attributes, paginated.
 
-**Timers (testing/ops)**
-- `skipTimer` by command ID or by command index.
+**State-execution completion** — `waitForStateExecutionCompletion<T>(workflowId, stateId, stateExecutionNumber)`
+and `waitForStateExecutionCompletionByKey<T>(workflowId, waitForKey)` (both long-poll and decode the output).
 
-**State-execution completion polling** (Java & Python)
-- `waitForStateExecutionCompletion` — by state (+ execution number) or by **wait-for key**.
-
-**Config (Go)**
-- `UpdateWorkflowConfig` — update workflow configuration on a running workflow.
-
-All persistence/signal/RPC/lifecycle methods accept an optional **workflow run ID** to target a specific run.
+**Ops** — `skipTimer(workflowId, stateId, stateExecutionNumber, {commandId?|commandIndex?}, runId?)` and
+`updateWorkflowConfig(workflowId, config, runId?)`.
 
 ---
 
 ## 11. Reset & Stop Operations
 
-**Reset types** (`WorkflowResetType`): `BEGINNING`, `HISTORY_EVENT_ID`, `HISTORY_EVENT_TIME`, `STATE_ID`, `STATE_EXECUTION_ID`. Factory helpers exist in every SDK (e.g. `resetToBeginning`, `resetToHistoryEventId`, `resetToHistoryEventTime`, `resetToStateId`, `resetToStateExecutionId`). Options include a **reason** and **skip-signal-reapply** (Java also `skipUpdateReapply`).
+**Reset** — `ResetWorkflowOptions` (`WorkflowResetType`: `BEGINNING`, `HISTORY_EVENT_ID`,
+`HISTORY_EVENT_TIME`, `STATE_ID`, `STATE_EXECUTION_ID`) built via factories
+`resetToBeginning`, `resetToHistoryEventId`, `resetToHistoryEventTime`, `resetToStateId`,
+`resetToStateExecutionId`. Options also carry `reason`, `skipSignalReapply`, and `skipUpdateReapply`.
 
-**Stop types** (`WorkflowStopType`): `CANCEL`, `FAIL`, `TERMINATE`, with a reason.
+**Stop** — `StopWorkflowOptions` with `stopType` (`WorkflowStopType`: `CANCEL`, `FAIL`, `TERMINATE`) and `reason`.
 
-**Workflow status** (`WorkflowStatus`): `RUNNING`, `COMPLETED`, `FAILED`, `TIMEOUT`, `CANCELED`, `TERMINATED`, `CONTINUED_AS_NEW`.
+**Workflow status** (`WorkflowStatus`): `RUNNING`, `COMPLETED`, `FAILED`, `TIMEOUT`, `CANCELED`,
+`TERMINATED`, `CONTINUED_AS_NEW`.
 
 ---
 
 ## 12. Configuration & Serialization
 
-**Client options** (`ClientOptions`): server URL, worker URL, object encoder, API timeout / long-poll max wait, custom request headers (Java), service-API retry config (Java). Convenience defaults: `localDefault` / `local_default` / `GetLocalDefaultClientOptions`, and Java `dockerDefault`.
+**`ClientOptions`** (plain interface): `serverUrl`, `workerUrl`, `objectEncoder?`,
+`longPollWaitTimeSeconds?` (defaults to 10 when unset), `requestHeaders?` (sent on every server call),
+and `serviceApiRetryConfig?` — retries server-side (5xx) and connection failures with capped
+exponential backoff (defaults: 100ms initial / 1s max / 10 attempts). `localDefaultClientOptions()`
+returns a local preset; `DEFAULT_SERVER_URL` / `DEFAULT_WORKER_URL` are exported.
 
-**Worker options** (`WorkerOptions`): object encoder (+ defaults).
+**`WorkerOptions`**: `objectEncoder?` (+ default).
 
-**Object encoding/serialization** (`ObjectEncoder`): pluggable encode/decode of payloads.
-- Java default: `JacksonJsonObjectEncoder` (Jackson JSON).
-- Python: `DefaultPayloadConverter` with composable per-encoding converters (JSON plain, binary, null/unset), plus optional `PayloadCodec` (compression/encryption) and custom `JSONTypeConverter` / `AdvancedJSONEncoder` (dataclass/Pydantic/UUID support).
-- Go default: built-in `"builtinGolangJson"` encoder (`encoding/json`).
+**`ObjectEncoder`** — pluggable payload (de)serialization (`encodingType`, `encode`, `decode<T>`). The
+default `JsonObjectEncoder` (also `defaultObjectEncoder`) tags payloads `"json"` and uses
+`JSON.stringify`/`parse`; `encode(undefined)` → `undefined` and `decode(undefined | empty)` → `undefined`.
 
 ---
 
 ## 13. Worker Service & Registry
 
-**`WorkerService`** handles the three engine callbacks: WaitUntil, Execute, and Worker RPC (Java/Python/Go all expose handler methods, plus Python's `handle_worker_error` for formatting exceptions back to the server).
+**`WorkerService`** (`new WorkerService(registry, options?)`) handles the engine's callbacks; mount the
+three handlers on any HTTP framework at the exported path constants:
+- `handleWorkflowStateWaitUntil` → `API_PATH_WORKFLOW_STATE_WAIT_UNTIL` (`/api/v1/workflowState/start`)
+- `handleWorkflowStateExecute` → `API_PATH_WORKFLOW_STATE_EXECUTE` (`/api/v1/workflowState/decide`)
+- `handleWorkflowWorkerRpc` → `API_PATH_WORKFLOW_WORKER_RPC` (`/api/v1/workflowWorker/rpc`)
 
-**`Registry`** registers workflows and provides lookups for states, channel types, attribute types, persistence options, and RPC metadata. `addWorkflow(s)` / `add_workflow(s)` / `AddWorkflow(s)`.
+**`Registry`** registers workflows (`addWorkflow` / `addWorkflows`) and provides lookups used by the
+client and worker (states, RPCs, channel names, search-attribute types, data-attribute keys, prefix
+matching). Registration validates the workflow definition (§17).
 
 ---
 
 ## 14. Errors
 
-Common error categories across SDKs (names vary):
+All SDK errors extend a common `IwfError` base:
 
-- Definition/argument: `WorkflowDefinitionException` / `WorkflowDefinitionError`, `InvalidArgumentError`, `NotRegisteredError`.
-- HTTP transport: `IwfHttpException` / `HttpError` / `ApiError`, with client-side (4xx) vs server-side (5xx) distinction.
-- Lifecycle: `WorkflowAlreadyStartedException`, `WorkflowNotExistsException`, `NoRunningWorkflowException`, `LongPollTimeoutException`, `WorkflowUncompletedException` (with closed status, error type, and decodable per-state results).
-- RPC: Python `WorkflowRPCExecutionError`, `WorkflowRPCAcquiringLockFailure`; Go `IsRPCError` (status 420).
-- Abnormal-exit detail (Python): `WorkflowFailed`, `WorkflowTimeout`, `WorkflowTerminated`, `WorkflowCanceled`.
-- Go provides type-check helpers: `IsClientError`, `IsWorkflowAlreadyStartedError`, `IsWorkflowNotExistsError`, `IsRPCError`, `AsWorkflowUncompletedError`.
+- **Definition / argument**: `WorkflowDefinitionError`, `InvalidArgumentError`, `NotRegisteredError`,
+  `ObjectEncoderError`.
+- **HTTP transport**: `IwfHttpError` carries `statusCode` / `subStatus` / `errorResponse` and exposes
+  boolean getters `isClientError` (4xx), `isWorkflowAlreadyStarted`, `isWorkflowNotExists`.
+- **Lifecycle**: `WorkflowUncompletedError` — thrown when a result is requested but the workflow closed
+  abnormally (or, for try-get, isn't closed yet); carries `workflowRunId`, `closedStatus`, `errorType`,
+  `errorMessage`, and the raw `stateResults`.
+
+(The flat base + boolean getters replace Java's exception subtypes — see §16.)
 
 ---
 
 ## 15. Cross-Language Feature Matrix
 
-Use this as the **TypeScript SDK completion checklist**. The **TS (current)** column reflects the
-state of the `iwf-ts-sdk` repo *on the `typescript-sdk` branch* — the full SDK build-out (~88%),
-including the changes staged for commit. The IDL pin has been bumped to **`1.0.0-121`** (`b249c5e`),
-unblocking the previously-gated features. Teams should update the TS column as they close the
-remaining gaps.
+The **TS (current)** column reflects the `iwf-ts-sdk` repo on the `typescript-sdk` branch. The full
+catalogued surface is now implemented (**40/40**); the IDL pin is **`1.0.0-121`** (`b249c5e`). Three
+audits against the Java SDK (§16) confirmed wire- and behavior-parity, with remaining differences
+being intentional/idiomatic. The TS-specific behaviors, validation, and surface are detailed in
+§17–§18.
 
 Legend: ✅ = present · 🟡 = partial / stubbed · ❌ = missing · ⚠️ = present but narrower/different · — = not observed.
 
@@ -505,7 +626,86 @@ From the 2026-06-30 re-audits; intentionally left as-is:
 - **`WorkflowUncompletedError`** exposes the raw `stateResults` array but no `getStateResult(i, type)`
   decode helper (the error isn't constructed with an encoder).
 
+### Third full audit (2026-06-30)
+A third complete TS↔Java diff (serialization included) confirmed the SDK is wire- and behavior-aligned:
+**~110 MATCH · ~160 intentional/idiomatic differences · ~25 minor non-intentional deltas — zero
+correctness gaps**, with every previously-fixed item verified MATCH. The remaining non-intentional
+deltas are ergonomics/convenience only (e.g. no empty-keys guard on attribute reads, missing
+`getStateResultsSize()`/`getErrorDetails()`/`dockerDefault` conveniences, `Context.workflowType`
+optional vs required, `2^n` vs Feign's ~1.5× backoff curve) and are catalogued above as accepted.
+The audit also found places where TS is **more correct than Java** — it avoids the `case DOUBLE`
+search-attribute seeding fall-through and the `recordEvent` encode-then-overwrite bugs, and labels the
+`resetToHistoryEventTime` reset type correctly.
+
+---
+
+## 17. Validation & Guardrails
+
+The TypeScript SDK validates aggressively and fails loud, at three points. (Many of these are
+stricter than, or not present in, the other SDKs — see §16.)
+
+**At registration (`Registry.addWorkflow`)** — rejects:
+- a duplicate workflow type, or an empty workflow-type string;
+- a duplicate state id, or **more than one starting state**;
+- a persistence key declared more than once (data *or* search attribute);
+- a duplicate signal/internal channel name, or a duplicate RPC name;
+- a search-attribute definition missing its value type.
+
+**When building the outbound request / mapping a decision** — rejects:
+- a movement to an **unregistered, non-system** state id;
+- `forAnyCommandCombinationCompleted` referencing a command id not present in the request;
+- an empty/`null` `StateDecision` returned from `execute`;
+- an execute-failure proceed policy without a target state id and a **bounded** retry policy
+  (`maximumAttempts`/`maximumAttemptsDurationSeconds`); same bound required for a `waitUntil`
+  `PROCEED_ON_FAILURE` policy;
+- a recovery (proceed) state that itself declares an execute-failure proceed policy (no nesting);
+- initial search/data attributes whose keys aren't declared (or whose SA type doesn't match) at start.
+
+**In-workflow (state & RPC handlers)** — rejects:
+- `get`/`set` of a data attribute whose key isn't declared (exact or prefix);
+- `set` of a search attribute that's undeclared or of the wrong type;
+- publishing to / sizing an internal or signal channel whose name isn't declared (exact or prefix);
+- a duplicate `recordEvent` key within one invocation;
+- publishing to **and** waiting on the same internal channel in one `waitUntil`;
+- `triggerStateMovements` called outside an RPC.
+
+**Value guards** — `setSearchAttributeInt` rejects values outside JS safe-integer range (2^53−1);
+`setSearchAttributeDatetime` requires Unix epoch-seconds or an RFC3339 / Go-layout timestamp.
+
+---
+
+## 18. TypeScript SDK Specifics
+
+Behaviors and conventions particular to the TS SDK (useful when this file becomes the SDK docs):
+
+- **Async handlers** — `waitUntil`, `execute`, and RPC handlers may return a value *or* a `Promise`;
+  the worker awaits them. Inputs are decoded native values typed as `unknown` (cast as needed).
+- **Pluggable `ObjectEncoder`** — default `JsonObjectEncoder` (tags payloads `"json"`, uses
+  `JSON.stringify`/`parse`). `encode(undefined)`→`undefined`; `decode(undefined | empty | "")`→`undefined`.
+  Swap it via `ClientOptions.objectEncoder` / `WorkerOptions`.
+- **Client resilience & config** — `serviceApiRetryConfig` (server-error/connection retry with capped
+  backoff), `requestHeaders` (sent on every call), and a `longPollWaitTimeSeconds` default applied in code.
+- **Result retrieval** — blocking `getSimpleWorkflowResult` / `getComplexWorkflowResults` and
+  `waitForWorkflowCompletion` (void); non-blocking `tryGettingSimpleWorkflowResult` /
+  `tryGettingComplexWorkflowResult` (throw `WorkflowUncompletedError` if not yet closed).
+- **Channels** — `publishToInternalChannel` and `publishToInternalChannelBatch` from the client;
+  `getInternalChannelSize` / `getSignalChannelSize` in-workflow.
+- **Start options** — `WorkflowOptions` supports id-reuse, cron, `startDelaySeconds`, retry, initial
+  search & data attributes, `waitForCompletionStateIds`/`...ExecutionIds`, `workflowAlreadyStartedOptions`,
+  and config override; data-attribute caching seeds the memo automatically when enabled.
+- **Builders vs plain interfaces** — option types are plain interfaces (object literals); `Registry`,
+  `Context`, `StateDef`, `StateMovement`, `CommandRequest`, and `UnregisteredWorkflowOptions` provide
+  hand-written builders.
+- **Errors** — a single `IwfError` base with `IwfHttpError` (`isClientError` / `isWorkflowAlreadyStarted` /
+  `isWorkflowNotExists` getters), plus `WorkflowDefinitionError`, `InvalidArgumentError`,
+  `NotRegisteredError`, `ObjectEncoderError`, and `WorkflowUncompletedError`.
+- **Toolchain** — Node 24 / `ES2024`, `module`/`moduleResolution` `nodenext` with `isolatedModules`
+  (CommonJS output); generated client in `gen/iwfidl` pinned to IDL `1.0.0-121`; public API barrel is `iwf/index.ts`.
+- **Intentional divergences from Java** are catalogued in §16 (no `Class<T>` typing, flat error model,
+  single-signature RPC handler, naming).
+
 ---
 
 *Generated from analysis of `iwf-java-sdk`, `iwf-python-sdk`, and `iwf-golang-sdk` source on 2026-06-24.
-Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847 and AUTOPLAT-1850.*
+Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847 and AUTOPLAT-1850.
+Sections 17–18 and a third full audit summary added 2026-06-30.*
