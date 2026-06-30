@@ -37,7 +37,7 @@ interface InvocationIo {
 export class WorkerService {
     public static readonly API_PATH_WORKFLOW_STATE_WAIT_UNTIL = "/api/v1/workflowState/start";
     public static readonly API_PATH_WORKFLOW_STATE_EXECUTE = "/api/v1/workflowState/decide";
-    public static readonly API_PATH_WORKFLOW_WORKER_RPC = "/api/v1/workflowWorkerRPC";
+    public static readonly API_PATH_WORKFLOW_WORKER_RPC = "/api/v1/workflowWorker/rpc";
 
     private readonly registry: Registry;
     private readonly encoder: ObjectEncoder;
