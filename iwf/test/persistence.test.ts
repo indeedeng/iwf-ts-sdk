@@ -56,4 +56,29 @@ describe("PersistenceImpl", () => {
         expect(p.getUpsertStateLocals()).toHaveLength(1);
         expect(p.getRecordEvents()).toHaveLength(1);
     });
+
+    describe("data-attribute key validation", () => {
+        // Accept exact key "user" or any key starting with "cache_".
+        const isValid = (key: string): boolean => key === "user" || key.startsWith("cache_");
+        const withValidator = (): PersistenceImpl =>
+            new PersistenceImpl(defaultObjectEncoder, new Map(), new Map(), new Map(), isValid);
+
+        it("allows declared exact and prefix keys", () => {
+            const p = withValidator();
+            expect(() => p.setDataAttribute("user", 1)).not.toThrow();
+            expect(() => p.setDataAttribute("cache_42", 1)).not.toThrow();
+            expect(p.getDataAttribute("cache_42")).toBe(1);
+        });
+
+        it("rejects an undeclared key on set and get", () => {
+            const p = withValidator();
+            expect(() => p.setDataAttribute("nope", 1)).toThrow(/Data attribute nope is not declared/);
+            expect(() => p.getDataAttribute("nope")).toThrow(/Data attribute nope is not declared/);
+        });
+
+        it("skips validation when no validator is provided", () => {
+            const p = newPersistence();
+            expect(() => p.setDataAttribute("anything", 1)).not.toThrow();
+        });
+    });
 });

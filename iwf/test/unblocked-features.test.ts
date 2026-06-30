@@ -6,8 +6,42 @@ import { SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRe
 import { UnregisteredClient } from "../src/unregistered-client";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
 import { localDefaultClientOptions } from "../src/client-options";
+import { Registry } from "../src/registry";
+import { ObjectWorkflow } from "../src/object-workflow";
+import { StateDef } from "../src/state-definition";
+import { WorkflowState } from "../src/workflow-state";
+import { CommunicationMethodDef } from "../src/communication/communication-method-def";
+import { PersistenceOptions } from "../src/persistence/persistence-options";
+import { WorkflowRpcRequest } from "../../gen/iwfidl";
 
 const noSkip = () => undefined;
+
+const rpcState: WorkflowState = {
+    get stateId() {
+        return "S1";
+    },
+    execute(): StateDecision {
+        return StateDecision.gracefulCompleteWorkflow();
+    },
+};
+
+class CachingRpcWorkflow implements ObjectWorkflow {
+    getWorkflowType(): string {
+        return "cachingRpc";
+    }
+    getWorkflowStates(): StateDef[] {
+        return [StateDef.startingState(rpcState)];
+    }
+    getCommunicationSchema(): CommunicationMethodDef[] {
+        return [
+            CommunicationMethodDef.rpcMethodDef("strong", () => "ok", { bypassCachingForStrongConsistency: true }),
+            CommunicationMethodDef.rpcMethodDef("cached", () => "ok"),
+        ];
+    }
+    getPersistenceOptions(): PersistenceOptions {
+        return new PersistenceOptions(true);
+    }
+}
 
 describe("conditional close (force-complete-if-channel-empty)", () => {
     it("builds an internal-channel conditional close with a fallback state", () => {
@@ -103,5 +137,33 @@ describe("start-options wiring (delay, initial data attributes, wait-for-complet
         expect(captured?.workflowStartOptions?.dataAttributes).toBeUndefined();
         expect(captured?.waitForCompletionStateIds).toBeUndefined();
         expect(captured?.waitForCompletionStateExecutionIds).toBeUndefined();
+    });
+});
+
+describe("RPC bypassCachingForStrongConsistency wiring", () => {
+    const buildClient = (): { client: Client; captured: () => WorkflowRpcRequest | undefined } => {
+        const registry = new Registry();
+        const workflow = new CachingRpcWorkflow();
+        registry.addWorkflow(workflow);
+        const client = new Client(registry, localDefaultClientOptions());
+        let captured: WorkflowRpcRequest | undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (client as any).unregistered.invokeRpc = jest.fn((request: WorkflowRpcRequest) => {
+            captured = request;
+            return Promise.resolve(undefined);
+        });
+        return { client, captured: () => captured };
+    };
+
+    it("sends useMemoForDataAttributes=false when the RPC requests strong consistency", async () => {
+        const { client, captured } = buildClient();
+        await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "strong");
+        expect(captured()?.useMemoForDataAttributes).toBe(false);
+    });
+
+    it("sends useMemoForDataAttributes=true when caching is enabled and no bypass requested", async () => {
+        const { client, captured } = buildClient();
+        await client.invokeRpc(new CachingRpcWorkflow(), "wf-1", "cached");
+        expect(captured()?.useMemoForDataAttributes).toBe(true);
     });
 });

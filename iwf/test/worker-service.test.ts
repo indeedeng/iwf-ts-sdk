@@ -52,9 +52,27 @@ class SampleWorkflow implements ObjectWorkflow {
     }
     getCommunicationSchema(): CommunicationMethodDef[] {
         return [
+            CommunicationMethodDef.internalChannelDef("queue"),
+            CommunicationMethodDef.internalChannelPrefixDef("dyn_"),
             CommunicationMethodDef.rpcMethodDef("appendItem", (_ctx, input, _p, communication: Communication) => {
                 communication.publishInternalChannel("queue", input);
                 return { acceptedAt: 123 };
+            }),
+            CommunicationMethodDef.rpcMethodDef("publishDynamic", (_ctx, input, _p, communication: Communication) => {
+                communication.publishInternalChannel("dyn_42", input);
+                return "ok";
+            }),
+            CommunicationMethodDef.rpcMethodDef("publishUndeclared", (_ctx, input, _p, communication: Communication) => {
+                communication.publishInternalChannel("not_declared", input);
+                return "ok";
+            }),
+            CommunicationMethodDef.signalChannelDef("sig"),
+            CommunicationMethodDef.rpcMethodDef("readSizes", (_ctx, _input, _p, communication: Communication) => {
+                communication.publishInternalChannel("queue", "pending");
+                return {
+                    internal: communication.getInternalChannelSize("queue"),
+                    signal: communication.getSignalChannelSize("sig"),
+                };
             }),
         ];
     }
@@ -104,5 +122,40 @@ describe("WorkerService", () => {
         expect(defaultObjectEncoder.decode(res.output)).toEqual({ acceptedAt: 123 });
         expect(res.publishToInterStateChannel?.[0].channelName).toBe("queue");
         expect(defaultObjectEncoder.decode(res.publishToInterStateChannel?.[0].value)).toEqual({ item: "a" });
+    });
+
+    it("allows publishing to a channel name matching a registered prefix", async () => {
+        const res = await newService().handleWorkflowWorkerRpc({
+            context: idlContext,
+            workflowType: "sample",
+            rpcName: "publishDynamic",
+            input: defaultObjectEncoder.encode("x"),
+        });
+        expect(res.publishToInterStateChannel?.[0].channelName).toBe("dyn_42");
+    });
+
+    it("rejects publishing to an undeclared internal channel", async () => {
+        await expect(
+            newService().handleWorkflowWorkerRpc({
+                context: idlContext,
+                workflowType: "sample",
+                rpcName: "publishUndeclared",
+                input: defaultObjectEncoder.encode("x"),
+            }),
+        ).rejects.toThrow(/Internal channel not_declared is not declared/);
+    });
+
+    it("reports channel sizes from server-provided infos plus pending publishes", async () => {
+        const res = await newService().handleWorkflowWorkerRpc({
+            context: idlContext,
+            workflowType: "sample",
+            rpcName: "readSizes",
+            input: defaultObjectEncoder.encode(null),
+            internalChannelInfos: { queue: { size: 2 } },
+            signalChannelInfos: { sig: { size: 5 } },
+        });
+
+        // 2 already-queued + 1 published during this RPC = 3; signal size passes through.
+        expect(defaultObjectEncoder.decode(res.output)).toEqual({ internal: 3, signal: 5 });
     });
 });

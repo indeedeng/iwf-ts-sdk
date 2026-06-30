@@ -16,7 +16,7 @@ import { CommandRequestMapper } from "./mapper/command-request-mapper";
 import { CommandResultsMapper } from "./mapper/command-results-mapper";
 import { StateDecisionMapper } from "./mapper/state-decision-mapper";
 import { SkipWaitUntilResolver } from "./mapper/state-movement-mapper";
-import { CommunicationImpl } from "./communication/communication";
+import { ChannelInfoMap, CommunicationImpl } from "./communication/communication";
 import { PersistenceImpl, keyValuesToMap, searchAttributesToMap } from "./persistence/persistence";
 import { CommandRequest } from "./command-request";
 import { StateDecision } from "./state-decision";
@@ -52,7 +52,7 @@ export class WorkerService {
     ): Promise<WorkflowStateWaitUntilResponse> {
         const state = this.getState(request.workflowType, request.workflowStateId);
         const context = ContextMapper.fromIdl(request.context, request.workflowType);
-        const io = this.buildIo(request.searchAttributes, request.dataObjects, undefined);
+        const io = this.buildIo(request.workflowType, request.searchAttributes, request.dataObjects, undefined);
         const input = this.encoder.decode(request.stateInput);
 
         const commandRequest =
@@ -75,7 +75,7 @@ export class WorkerService {
     ): Promise<WorkflowStateExecuteResponse> {
         const state = this.getState(request.workflowType, request.workflowStateId);
         const context = ContextMapper.fromIdl(request.context, request.workflowType);
-        const io = this.buildIo(request.searchAttributes, request.DataObjects, request.stateLocals);
+        const io = this.buildIo(request.workflowType, request.searchAttributes, request.DataObjects, request.stateLocals);
         const input = this.encoder.decode(request.stateInput);
         const commandResults = CommandResultsMapper.fromIdl(request.commandResults, this.encoder);
 
@@ -104,7 +104,14 @@ export class WorkerService {
         }
 
         const context = ContextMapper.fromIdl(request.context, request.workflowType);
-        const io = this.buildIo(request.searchAttributes, request.dataAttributes, undefined);
+        const io = this.buildIo(
+            request.workflowType,
+            request.searchAttributes,
+            request.dataAttributes,
+            undefined,
+            request.internalChannelInfos,
+            request.signalChannelInfos,
+        );
         const input = this.encoder.decode(request.input);
 
         const output = await rpc.rpcHandler(context, input, io.persistence, io.communication);
@@ -135,17 +142,28 @@ export class WorkerService {
     }
 
     private buildIo(
+        workflowType: string,
         searchAttributes: SearchAttribute[] | undefined,
         dataAttributes: KeyValue[] | undefined,
         stateLocals: KeyValue[] | undefined,
+        internalChannelInfos?: ChannelInfoMap,
+        signalChannelInfos?: ChannelInfoMap,
     ): InvocationIo {
         const persistence = new PersistenceImpl(
             this.encoder,
             keyValuesToMap(dataAttributes),
             searchAttributesToMap(searchAttributes),
             keyValuesToMap(stateLocals),
+            (key) => this.registry.isValidDataAttributeKey(workflowType, key),
         );
-        return { persistence, communication: new CommunicationImpl(this.encoder) };
+        const communication = new CommunicationImpl(
+            this.encoder,
+            (name) => this.registry.isValidInternalChannelName(workflowType, name),
+            (name) => this.registry.isValidSignalChannelName(workflowType, name),
+            internalChannelInfos,
+            signalChannelInfos,
+        );
+        return { persistence, communication };
     }
 
     private skipResolver(workflowType: string): SkipWaitUntilResolver {

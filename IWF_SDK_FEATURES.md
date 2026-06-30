@@ -313,14 +313,14 @@ Legend: ✅ = present · 🟡 = partial / stubbed · ❌ = missing · ⚠️ = p
 | Data attributes (get/set) | ✅ | ✅ | ✅ | ✅ |
 | Search attributes — all 7 types | ✅ | ✅ | ✅ | ✅ |
 | State execution locals + record event | ✅ | ✅ | ✅ | ✅ |
-| Prefix-based dynamic attributes/channels | ✅ | ✅ | — | 🟡 (`isPrefix` defined, no prefix lookup) |
+| Prefix-based dynamic attributes/channels | ✅ | ✅ | — | ✅ (data attrs + channels; not search attrs, matching Java) |
 | Persistence loading policies (load/lock) | ✅ | ✅ | ✅ | ✅ |
 | Persistence caching / memo | ✅ | ✅ | ⚠️ (RPC opts) | ✅ |
 | Signal channels & internal channels | ✅ | ✅ | ✅ | ✅ |
 | Publish to internal channel | ✅ | ✅ | ✅ | ✅ |
-| Channel size queries | ✅ | ✅ | — | ❌ |
+| Channel size queries | ✅ | ✅ | — | ✅ |
 | RPC (define + invoke) | ✅ | ✅ | ✅ | ✅ |
-| RPC persistence loading/locking + bypass cache | ✅ | ✅ | ⚠️ | 🟡 (loading wired; bypass-cache flag not sent) |
+| RPC persistence loading/locking + bypass cache | ✅ | ✅ | ⚠️ | ✅ |
 | State options (timeout/retry/failure policy) | ✅ | ✅ | ✅ | ✅ |
 | Dynamic per-movement state-options override | ✅ | ✅ | — | ✅ |
 | Workflow start options (ID reuse, cron, delay, retry) | ✅ | ✅ | ✅ | ✅ |
@@ -341,10 +341,15 @@ Legend: ✅ = present · 🟡 = partial / stubbed · ❌ = missing · ⚠️ = p
 | WorkerService (WaitUntil/Execute/RPC handlers) | ✅ | ✅ | ✅ | ✅ |
 | Registry | ✅ | ✅ | ✅ | ✅ |
 
-**TS status summary:** 37/40 ✅ · 2/40 🟡 · 1/40 ❌ (~93%). Remaining gaps: channel-size queries (❌),
-prefix-based dynamic fields lookup (🟡), and the RPC bypass-cache flag not sent on the request (🟡).
-Start delay, initial *data* attributes, and wait-for-completion-state on start are all supported by
-the `1.0.0-121` IDL and are now wired through `WorkflowOptions` → `startWorkflow`.
+**TS status summary:** 40/40 ✅ (~100% of the catalogued surface). `getInternalChannelSize` (server-provided
+size + messages published earlier in the same invocation) and `getSignalChannelSize` are exposed on the
+`Communication` handle, populated from the RPC request's `internalChannelInfos`/`signalChannelInfos` and
+validated against the registry (exact or prefix) — matching Java's `CommunicationImpl`.
+Prefix-based dynamic fields mirror the Java SDK: the Registry resolves keys
+exact-first then by prefix (matching `TypeStore.doGetType`) for data attributes, signal channels, and
+internal channels — search attributes are exact-only — and in-workflow `getDataAttribute`/`setDataAttribute`
+and `publishInternalChannel` reject undeclared keys/channels. The RPC bypass-cache flag maps to
+`useMemoForDataAttributes` (`useMemo = cachingEnabled && !bypass`), identical to Java's `RpcInvocationHandler`.
 
 ### Notes for the TypeScript SDK
 

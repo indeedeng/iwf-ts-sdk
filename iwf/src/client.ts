@@ -14,7 +14,7 @@ import { ObjectEncoder } from "./object-encoder";
 import { Registry } from "./registry";
 import { UnregisteredClient } from "./unregistered-client";
 import { UnregisteredWorkflowOptionsBuilder } from "./unregistered-workflow-options";
-import { ObjectWorkflow } from "./object-workflow";
+import { ObjectWorkflow, getPersistenceOptions } from "./object-workflow";
 import { WorkflowOptions } from "./workflow-options";
 import { shouldSkipWaitUntil } from "./workflow-state";
 import { ResetWorkflowOptions, StopWorkflowOptions } from "./workflow-operation-options";
@@ -217,6 +217,9 @@ export class Client {
     ): Promise<T | undefined> {
         const rpcDef = this.registry.getRpc(workflow.getWorkflowType(), rpcName);
         const opts = rpcDef?.rpcOptions;
+        // Data attributes are served from the workflow memo only when caching is enabled and the
+        // caller hasn't asked to bypass it for strongly-consistent reads.
+        const cachingEnabled = getPersistenceOptions(workflow).enableCaching;
         const request: WorkflowRpcRequest = {
             workflowId,
             workflowRunId,
@@ -225,6 +228,7 @@ export class Client {
             timeoutSeconds: opts?.timeoutSeconds,
             dataAttributesLoadingPolicy: opts?.dataAttributesLoadingPolicy,
             searchAttributesLoadingPolicy: opts?.searchAttributesLoadingPolicy,
+            useMemoForDataAttributes: cachingEnabled && !opts?.bypassCachingForStrongConsistency,
         };
         const output = await this.unregistered.invokeRpc(request);
         return this.encoder.decode<T>(output);

@@ -1,5 +1,6 @@
 import { EncodedObject, KeyValue, SearchAttribute, SearchAttributeValueType } from "../../../gen/iwfidl";
 import { ObjectEncoder } from "../object-encoder";
+import { InvalidArgumentError } from "../errors";
 
 /**
  * Read/write access to workflow persistence available inside state methods and RPCs:
@@ -55,27 +56,40 @@ export class PersistenceImpl implements Persistence {
     private readonly stateLocalUpserts = new Map<string, EncodedObject>();
     private readonly recordedEvents = new Map<string, EncodedObject>();
 
+    /** Optional registry-backed check that a data-attribute key is declared (by exact key or prefix). */
+    private readonly isValidDataAttributeKey?: (key: string) => boolean;
+
     constructor(
         encoder: ObjectEncoder,
         dataAttributes: Map<string, EncodedObject>,
         searchAttributes: Map<string, SearchAttribute>,
         stateLocals: Map<string, EncodedObject>,
+        isValidDataAttributeKey?: (key: string) => boolean,
     ) {
         this.encoder = encoder;
         this.dataAttributes = dataAttributes;
         this.searchAttributes = searchAttributes;
         this.stateLocals = stateLocals;
+        this.isValidDataAttributeKey = isValidDataAttributeKey;
     }
 
     public getDataAttribute<T = unknown>(key: string): T | undefined {
+        this.checkDataAttributeKey(key);
         const encoded = this.dataAttributeUpserts.get(key) ?? this.dataAttributes.get(key);
         return this.encoder.decode<T>(encoded);
     }
 
     public setDataAttribute(key: string, value: unknown): void {
+        this.checkDataAttributeKey(key);
         const encoded = this.encoder.encode(value);
         if (encoded !== undefined) {
             this.dataAttributeUpserts.set(key, encoded);
+        }
+    }
+
+    private checkDataAttributeKey(key: string): void {
+        if (this.isValidDataAttributeKey !== undefined && !this.isValidDataAttributeKey(key)) {
+            throw new InvalidArgumentError(`Data attribute ${key} is not declared in the workflow persistence schema`);
         }
     }
 
