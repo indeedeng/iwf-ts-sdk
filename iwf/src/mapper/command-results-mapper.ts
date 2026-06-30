@@ -32,6 +32,9 @@ export class CommandResultsMapper {
             value: encoder.decode(c.value),
         }));
 
-        return new CommandResults(timerResults, signalResults, internalChannelResults, idl.stateStartApiSucceeded);
+        // The server reports waitUntil failure via stateWaitUntilFailed; succeeded = !failed (default
+        // true), matching the Java SDK. (stateStartApiSucceeded is the deprecated field.)
+        const waitUntilApiSucceeded = !idl.stateWaitUntilFailed;
+        return new CommandResults(timerResults, signalResults, internalChannelResults, waitUntilApiSucceeded);
     }
 }

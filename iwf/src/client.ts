@@ -53,23 +53,24 @@ export class Client {
         options?: WorkflowOptions,
     ): Promise<string> {
         const workflowType = workflow.getWorkflowType();
+        // A workflow may have no starting state (e.g. one that only serves RPCs/signals) — Java
+        // permits this and passes a null start state id, so we do the same rather than throwing.
         const startState = workflow.getWorkflowStates().find((s) => s.canStartWorkflow);
-        if (startState === undefined) {
-            throw new InvalidArgumentError(`Workflow ${workflowType} has no starting state to start from`);
-        }
 
-        // Resolve the start state's declared options (getStateOptions) the same way transitions do,
-        // so its timeouts/retry/failure-policy/loading-policy + skipWaitUntil take effect at start.
-        const resolveState: StateResolver = (stateId) =>
-            workflow.getWorkflowStates().find((s) => s.workflowState.stateId === stateId)?.workflowState;
-        const startStateOptions = StateMovementMapper.resolveStateOptions(
-            startState.workflowState.stateId,
-            undefined,
-            resolveState,
-        );
         const builder = new UnregisteredWorkflowOptionsBuilder();
-        if (startStateOptions !== undefined) {
-            builder.setWorkflowStateOptions(startStateOptions);
+        if (startState !== undefined) {
+            // Resolve the start state's declared options (getStateOptions) the same way transitions do,
+            // so its timeouts/retry/failure-policy/loading-policy + skipWaitUntil take effect at start.
+            const resolveState: StateResolver = (stateId) =>
+                workflow.getWorkflowStates().find((s) => s.workflowState.stateId === stateId)?.workflowState;
+            const startStateOptions = StateMovementMapper.resolveStateOptions(
+                startState.workflowState.stateId,
+                undefined,
+                resolveState,
+            );
+            if (startStateOptions !== undefined) {
+                builder.setWorkflowStateOptions(startStateOptions);
+            }
         }
         // Seed the workflow from the data-attribute memo when caching is enabled (matches the Java SDK).
         if (getPersistenceOptions(workflow).enableCaching) {
@@ -134,7 +135,7 @@ export class Client {
             workflowType,
             workflowId,
             timeoutSeconds,
-            startState.workflowState.stateId,
+            startState?.workflowState.stateId,
             this.encoder.encode(input),
             builder.build(),
         );
@@ -147,6 +148,11 @@ export class Client {
     ): Promise<T | undefined> {
         const output = await this.unregistered.getSimpleWorkflowResultWithWait(workflowId, workflowRunId);
         return this.encoder.decode<T>(output);
+    }
+
+    /** Block until the workflow completes, discarding the result (throws if it closed abnormally). */
+    public async waitForWorkflowCompletion(workflowId: string, workflowRunId?: string): Promise<void> {
+        await this.unregistered.getComplexWorkflowResultWithWait(workflowId, workflowRunId);
     }
 
     /** Long-poll for a multi-output workflow's results (raw outputs; decode with the encoder). */
@@ -372,6 +378,19 @@ export class Client {
             value: value === undefined ? undefined : this.encoder.encode(value),
         };
         await this.unregistered.publishToInternalChannel(workflowId, [message], workflowRunId);
+    }
+
+    /** Publish multiple internal-channel messages in one request. */
+    public async publishToInternalChannelBatch(
+        workflowId: string,
+        messages: { channelName: string; value?: unknown }[],
+        workflowRunId?: string,
+    ): Promise<void> {
+        const encoded: InterStateChannelPublishing[] = messages.map((m) => ({
+            channelName: m.channelName,
+            value: m.value === undefined ? undefined : this.encoder.encode(m.value),
+        }));
+        await this.unregistered.publishToInternalChannel(workflowId, encoded, workflowRunId);
     }
 
     /** Long-poll for the Nth execution of a state to complete; returns its decoded output. */

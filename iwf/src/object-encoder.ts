@@ -34,7 +34,7 @@ export class JsonObjectEncoder implements ObjectEncoder {
     }
 
     public decode<T = unknown>(encoded: EncodedObject | undefined): T | undefined {
-        if (encoded === undefined || encoded.data === undefined) {
+        if (encoded === undefined || encoded.data === undefined || encoded.data === "") {
             return undefined;
         }
         return JSON.parse(encoded.data) as T;

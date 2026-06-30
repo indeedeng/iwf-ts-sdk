@@ -1,5 +1,5 @@
 import { isValidCron } from "cron-validator";
-import type { AxiosPromise } from "axios";
+import axios, { type AxiosPromise } from "axios";
 import {
     DefaultApi,
     EncodedObject,
@@ -18,10 +18,12 @@ import {
     WorkflowStatus,
     WorkflowWaitForStateCompletionRequest,
 } from "../../gen/iwfidl";
-import { ClientOptions } from "./client-options";
+import { ClientOptions, resolveLongPollWaitTimeSeconds, resolveServiceApiRetryConfig } from "./client-options";
 import { UnregisteredWorkflowOptions } from "./unregistered-workflow-options";
 import { IwfHttpError, WorkflowUncompletedError } from "./errors";
 import { ResetWorkflowOptions, StopWorkflowOptions } from "./workflow-operation-options";
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Low-level client that talks to the iWF server using raw IDL/{@link EncodedObject} types and no
@@ -33,7 +35,9 @@ export class UnregisteredClient {
 
     constructor(options: ClientOptions) {
         this.options = options;
-        this.defaultApi = new DefaultApi(undefined, options.serverUrl, undefined);
+        // Apply custom request headers (if any) via a dedicated axios instance.
+        const axiosInstance = options.requestHeaders ? axios.create({ headers: options.requestHeaders }) : undefined;
+        this.defaultApi = new DefaultApi(undefined, options.serverUrl, axiosInstance);
     }
 
     public async startWorkflow(
@@ -114,7 +118,7 @@ export class UnregisteredClient {
             this.defaultApi.apiV1WorkflowGetWithWaitPost({
                 workflowId,
                 workflowRunId,
-                waitTimeSeconds: this.options.longPollWaitTimeSeconds,
+                waitTimeSeconds: resolveLongPollWaitTimeSeconds(this.options),
             }),
         );
         return this.extractSimpleResult(response);
@@ -143,7 +147,7 @@ export class UnregisteredClient {
             this.defaultApi.apiV1WorkflowGetWithWaitPost({
                 workflowId,
                 workflowRunId,
-                waitTimeSeconds: this.options.longPollWaitTimeSeconds,
+                waitTimeSeconds: resolveLongPollWaitTimeSeconds(this.options),
             }),
         );
         this.throwIfNotCompleted(response);
@@ -333,7 +337,12 @@ export class UnregisteredClient {
     public async waitForStateCompletion(
         request: WorkflowWaitForStateCompletionRequest,
     ): Promise<StateCompletionOutput | undefined> {
-        const response = await this.call(() => this.defaultApi.apiV1WorkflowWaitForStateCompletionPost(request));
+        // Long-poll using the configured wait time unless the caller already set one (matches Java).
+        const withWait: WorkflowWaitForStateCompletionRequest = {
+            ...request,
+            waitTimeSeconds: request.waitTimeSeconds ?? resolveLongPollWaitTimeSeconds(this.options),
+        };
+        const response = await this.call(() => this.defaultApi.apiV1WorkflowWaitForStateCompletionPost(withWait));
         return response.stateCompletionOutput;
     }
 
@@ -351,19 +360,32 @@ export class UnregisteredClient {
 
     /** Await an axios call and translate HTTP failures into {@link IwfHttpError}. */
     private async call<T>(fn: () => AxiosPromise<T>): Promise<T> {
-        try {
-            const response = await fn();
-            return response.data;
-        } catch (e) {
-            const err = e as { response?: { status?: number; data?: unknown }; message?: string };
-            if (err.response) {
-                throw new IwfHttpError(
-                    `iWF server request failed with status ${err.response.status}`,
-                    err.response.status,
-                    err.response.data as never,
-                );
+        const retry = resolveServiceApiRetryConfig(this.options);
+        let attempt = 0;
+        for (;;) {
+            attempt += 1;
+            try {
+                const response = await fn();
+                return response.data;
+            } catch (e) {
+                const err = e as { response?: { status?: number; data?: unknown }; message?: string };
+                const status = err.response?.status;
+                // Retry server-side (5xx) and connection (no-response) failures with capped backoff.
+                const retryable = status === undefined || status >= 500;
+                if (retryable && attempt < retry.maximumAttempts) {
+                    const backoff = Math.min(retry.maxIntervalMs, retry.initialIntervalMs * 2 ** (attempt - 1));
+                    await sleep(backoff);
+                    continue;
+                }
+                if (err.response) {
+                    throw new IwfHttpError(
+                        `iWF server request failed with status ${status}`,
+                        status,
+                        err.response.data as never,
+                    );
+                }
+                throw new IwfHttpError(`iWF server request failed: ${err.message ?? String(e)}`);
             }
-            throw new IwfHttpError(`iWF server request failed: ${err.message ?? String(e)}`);
         }
     }
 }

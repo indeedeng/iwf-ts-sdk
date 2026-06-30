@@ -109,12 +109,26 @@ export class Registry {
                     }
                     rpcs.set(method.name, method);
                     break;
-                case CommunicationMethodType.SignalChannel:
-                    (method.isPrefix ? signalPrefixes : signals).add(method.name);
+                case CommunicationMethodType.SignalChannel: {
+                    const store = method.isPrefix ? signalPrefixes : signals;
+                    if (store.has(method.name)) {
+                        throw new WorkflowDefinitionError(
+                            `Signal channel ${method.name} already registered for ${workflowType}`,
+                        );
+                    }
+                    store.add(method.name);
                     break;
-                case CommunicationMethodType.InternalChannel:
-                    (method.isPrefix ? internalPrefixes : internals).add(method.name);
+                }
+                case CommunicationMethodType.InternalChannel: {
+                    const store = method.isPrefix ? internalPrefixes : internals;
+                    if (store.has(method.name)) {
+                        throw new WorkflowDefinitionError(
+                            `Internal channel ${method.name} already registered for ${workflowType}`,
+                        );
+                    }
+                    store.add(method.name);
                     break;
+                }
             }
         });
         this.rpcStore.set(workflowType, rpcs);

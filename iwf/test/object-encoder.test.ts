@@ -19,6 +19,10 @@ describe("JsonObjectEncoder", () => {
         expect(encoder.decode({ encoding: "json" })).toBeUndefined();
     });
 
+    it("decodes empty-string data as undefined instead of throwing", () => {
+        expect(encoder.decode({ encoding: "json", data: "" })).toBeUndefined();
+    });
+
     it("exposes a default encoder", () => {
         expect(defaultObjectEncoder.encodingType).toBe("json");
     });

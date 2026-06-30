@@ -1,5 +1,6 @@
 import { StateDecision } from "../src/state-decision";
 import { StateDecisionMapper } from "../src/mapper/state-decision-mapper";
+import { CommandResultsMapper } from "../src/mapper/command-results-mapper";
 import { Client } from "../src/client";
 import { defaultObjectEncoder } from "../src/object-encoder";
 import { PersistenceLoadingType, SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
@@ -17,7 +18,14 @@ import { PersistenceOptions } from "../src/persistence/persistence-options";
 import { PersistenceFieldDef } from "../src/persistence/persistence-field-def";
 import { WorkflowRpcRequest } from "../../gen/iwfidl";
 
-const noSkip = () => undefined;
+// Resolver stub: returns a minimal registered state for any id so the mapper's
+// "unregistered target state" guard passes in these unit tests.
+const noSkip = (id: string): WorkflowState => ({
+    get stateId() {
+        return id;
+    },
+    execute: () => StateDecision.gracefulCompleteWorkflow(),
+});
 
 const rpcState: WorkflowState = {
     get stateId() {
@@ -314,5 +322,120 @@ describe("start-time validation of initial attributes", () => {
                 initialDataAttributes: new Map([["nope", 1]]),
             }),
         ).rejects.toThrow(/not declared/);
+    });
+});
+
+describe("audit fixes: command-results + wait-for-state", () => {
+    it("derives waitUntilApiSucceeded from stateWaitUntilFailed", () => {
+        expect(CommandResultsMapper.fromIdl({ stateWaitUntilFailed: true }, defaultObjectEncoder).waitUntilApiSucceeded).toBe(false);
+        expect(CommandResultsMapper.fromIdl({ stateWaitUntilFailed: false }, defaultObjectEncoder).waitUntilApiSucceeded).toBe(true);
+        // Absent => succeeded (Java default)
+        expect(CommandResultsMapper.fromIdl({}, defaultObjectEncoder).waitUntilApiSucceeded).toBe(true);
+    });
+
+    it("long-polls wait-for-state-completion with the configured wait time", async () => {
+        const client = new UnregisteredClient(localDefaultClientOptions());
+        let captured: { waitTimeSeconds?: number } | undefined;
+        client.defaultApi.apiV1WorkflowWaitForStateCompletionPost = jest.fn((request: { waitTimeSeconds?: number }) => {
+            captured = request;
+            return Promise.resolve({ data: {} });
+        }) as never;
+
+        await client.waitForStateCompletion({ workflowId: "wf-1", stateExecutionId: "S1-1" });
+
+        expect(captured?.waitTimeSeconds).toBe(localDefaultClientOptions().longPollWaitTimeSeconds);
+    });
+});
+
+describe("client features: retry, headers, longpoll default", () => {
+    it("retries a 5xx then succeeds", async () => {
+        const client = new UnregisteredClient({
+            serverUrl: "http://x",
+            workerUrl: "http://y",
+            serviceApiRetryConfig: { initialIntervalMs: 1, maxIntervalMs: 1, maximumAttempts: 3 },
+        });
+        const post = jest
+            .fn()
+            .mockRejectedValueOnce({ response: { status: 500 } })
+            .mockResolvedValueOnce({ data: { workflowRunId: "r" } });
+        client.defaultApi.apiV1WorkflowStartPost = post as never;
+
+        const runId = await client.startWorkflow("t", "wf", 60);
+        expect(runId).toBe("r");
+        expect(post).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry a 4xx", async () => {
+        const client = new UnregisteredClient({ serverUrl: "http://x", workerUrl: "http://y" });
+        const post = jest.fn().mockRejectedValue({ response: { status: 400 } });
+        client.defaultApi.apiV1WorkflowStartPost = post as never;
+
+        await expect(client.startWorkflow("t", "wf", 60)).rejects.toBeDefined();
+        expect(post).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies the default long-poll wait when options omit it", async () => {
+        const client = new UnregisteredClient({ serverUrl: "http://x", workerUrl: "http://y" });
+        let captured: { waitTimeSeconds?: number } | undefined;
+        client.defaultApi.apiV1WorkflowGetWithWaitPost = jest.fn((req: { waitTimeSeconds?: number }) => {
+            captured = req;
+            return Promise.resolve({ data: { workflowStatus: WorkflowStatus.Completed, results: [] } });
+        }) as never;
+
+        await client.getComplexWorkflowResultWithWait("wf");
+        expect(captured?.waitTimeSeconds).toBe(10);
+    });
+});
+
+describe("client features: batch publish, completion alias, no-start-state", () => {
+    const buildClient = (): { client: Client; unregistered: { [k: string]: jest.Mock } } => {
+        const registry = new Registry();
+        registry.addWorkflow(new CachingRpcWorkflow());
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unregistered = (client as any).unregistered;
+        unregistered.publishToInternalChannel = jest.fn(() => Promise.resolve());
+        unregistered.getComplexWorkflowResultWithWait = jest.fn(() => Promise.resolve([]));
+        unregistered.startWorkflow = jest.fn(() => Promise.resolve("run-1"));
+        return { client, unregistered };
+    };
+
+    it("encodes and sends a batch of internal-channel messages", async () => {
+        const { client, unregistered } = buildClient();
+        await client.publishToInternalChannelBatch("wf-1", [
+            { channelName: "a", value: 1 },
+            { channelName: "b", value: 2 },
+        ]);
+        const messages = unregistered.publishToInternalChannel.mock.calls[0][1];
+        expect(messages).toHaveLength(2);
+        expect(messages[0].channelName).toBe("a");
+    });
+
+    it("waitForWorkflowCompletion blocks via the complex-result wait", async () => {
+        const { client, unregistered } = buildClient();
+        await client.waitForWorkflowCompletion("wf-1");
+        expect(unregistered.getComplexWorkflowResultWithWait).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts a workflow with no starting state (passes undefined start state id)", async () => {
+        const noStartState: WorkflowState = {
+            get stateId() {
+                return "S1";
+            },
+            execute: () => StateDecision.gracefulCompleteWorkflow(),
+        };
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "noStart",
+            getWorkflowStates: () => [StateDef.nonStartingState(noStartState)],
+        };
+        const registry = new Registry();
+        registry.addWorkflow(wf);
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unregistered = (client as any).unregistered;
+        unregistered.startWorkflow = jest.fn(() => Promise.resolve("run-1"));
+
+        await client.startWorkflow(wf, "wf-1", 60);
+        expect(unregistered.startWorkflow.mock.calls[0][3]).toBeUndefined(); // startStateId
     });
 });

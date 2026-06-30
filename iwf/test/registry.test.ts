@@ -73,6 +73,18 @@ describe("Registry", () => {
         expect(() => new Registry().addWorkflow(wf)).toThrow(/starting states/);
     });
 
+    it("rejects a duplicate channel name", () => {
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "dupChan",
+            getWorkflowStates: () => [StateDef.startingState(state)],
+            getCommunicationSchema: () => [
+                CommunicationMethodDef.internalChannelDef("chan"),
+                CommunicationMethodDef.internalChannelDef("chan"),
+            ],
+        };
+        expect(() => new Registry().addWorkflow(wf)).toThrow(/already registered/);
+    });
+
     it("rejects a persistence key declared more than once", () => {
         const wf: ObjectWorkflow = {
             getWorkflowType: () => "dupKey",

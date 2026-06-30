@@ -10,9 +10,17 @@ export type StateResolver = (stateId: string) => WorkflowState | undefined;
 export class StateMovementMapper {
     public static toIdl(movement: StateMovement, encoder: ObjectEncoder, resolveState: StateResolver): IdlStateMovement {
         const stateInput = encoder.encode(movement.stateInput);
-        const stateOptions = movement.isClosingOrDeadEnd
-            ? movement.stateOptions?.toIdl()
-            : StateMovementMapper.resolveStateOptions(movement.stateId, movement.stateOptions?.toIdl(), resolveState);
+        let stateOptions: WorkflowStateOptions | undefined;
+        if (movement.isClosingOrDeadEnd) {
+            stateOptions = movement.stateOptions?.toIdl();
+        } else {
+            if (resolveState(movement.stateId) === undefined) {
+                throw new WorkflowDefinitionError(
+                    `State ${movement.stateId} is not registered in the workflow`,
+                );
+            }
+            stateOptions = StateMovementMapper.resolveStateOptions(movement.stateId, movement.stateOptions?.toIdl(), resolveState);
+        }
 
         return {
             stateId: movement.stateId,

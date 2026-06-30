@@ -89,6 +89,12 @@ describe("StateMovementMapper option resolution", () => {
         ).toThrow(WorkflowDefinitionError);
     });
 
+    it("rejects a movement to an unregistered (non-system) state", () => {
+        expect(() =>
+            StateMovementMapper.toIdl(StateMovement.create("Ghost"), defaultObjectEncoder, resolverFor()),
+        ).toThrow(WorkflowDefinitionError);
+    });
+
     it("does not attach options to closing/dead-end movements", () => {
         const idl = StateMovementMapper.toIdl(
             StateMovement.gracefulCompletingWorkflow("out"),

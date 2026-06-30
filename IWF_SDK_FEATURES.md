@@ -457,6 +457,21 @@ since closed under AUTOPLAT-1850:
   expressible via the `PersistenceLoadingPolicy` object on `RpcOptions` — more flexible than Java's flat
   annotation fields — so no separate fields were needed.)
 
+A third pass (full diff catalog, serialization included) then fixed the remaining unintended items:
+- **Bug — `waitUntilApiSucceeded`** is now derived from `stateWaitUntilFailed` (it was reading the
+  deprecated `stateStartApiSucceeded`, so it returned `undefined` whenever the server reported a
+  waitUntil failure).
+- **Bug — `waitForStateExecutionCompletion`** now long-polls (sets `waitTimeSeconds`); previously it
+  could return before the state completed.
+- **Bug — `ObjectEncoder.decode("")`** returns `undefined` instead of throwing in `JSON.parse`.
+- **Unregistered target-state** movements are now rejected at mapping (typo'd state ids fail loud).
+- **Duplicate signal/internal channel-name** registration is now rejected (matching the persistence/RPC checks).
+- **Client resilience/config**: automatic server-error (5xx) / connection retry with capped backoff
+  (`serviceApiRetryConfig`), custom `requestHeaders`, and the `longPollWaitTimeSeconds` default applied
+  in code rather than only in the convenience factory.
+- **Client API**: `publishToInternalChannelBatch`, a `waitForWorkflowCompletion` void alias, and
+  permitting a workflow with no starting state (matches Java).
+
 ### Not applicable by design
 - **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
   `ObjectEncoder`, not `Class<T>`), so there is no value type to validate. Key/prefix validation *is* enforced.
@@ -473,15 +488,22 @@ since closed under AUTOPLAT-1850:
   empty-type rejection, and richer command-result lookup helpers.
 
 ### Accepted minor differences (low impact — not being changed)
-From the 2026-06-30 re-audit; intentionally left as-is:
+From the 2026-06-30 re-audits; intentionally left as-is:
 - **Stricter-than-Java validation we added on purpose**: datetime format validation on set, the
   `getSearchAttributeInt` safe-integer guard (JS `number` can't hold int64 past 2^53), the
   `multiNextStates` empty-guard, and duplicate-RPC-name rejection. Java accepts these inputs; we reject them.
 - **Wire-shape**: TS emits `commandId: ""` and empty command/upsert arrays where Java omits the field;
   the RPC response includes an (empty) `upsertStateLocals`. Server-tolerant; no behavioral effect.
-- **Lookup semantics**: `getSignalValueByCommandId` returns `undefined` for a missing id where Java throws;
-  no `getSignalValueByIndex`; an unregistered target state isn't rejected at mapping time; duplicate
-  channel-name registration isn't rejected (duplicate persistence keys *are*).
+- **Lookup semantics**: `getSignalValueByCommandId` returns `undefined` for a missing id where Java
+  throws; there is no `getSignalValueByIndex`.
+- **`getRpc` returns `undefined`** for an unregistered workflow type (idiomatic lookup) rather than
+  throwing; the worker still throws `NotRegisteredError` at the call site.
+- **Null-payload reads** (`getWorkflowDataAttributes`/`...SearchAttributes`) return an empty map where
+  Java throws on a missing response body.
+- **`undefined`-valued writes** to data attributes / state-execution locals are dropped (Java stores an
+  encoded null); pass `null` to persist an explicit null.
+- **`WorkflowUncompletedError`** exposes the raw `stateResults` array but no `getStateResult(i, type)`
+  decode helper (the error isn't constructed with an encoder).
 
 ---
 
