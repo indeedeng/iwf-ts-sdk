@@ -7,6 +7,7 @@ import { StateDecision } from "../src/state-decision";
 import { CommandRequest } from "../src/command-request";
 import { CommandResults } from "../src/command-results";
 import { TimerCommand } from "../src/command/timer-command";
+import { InternalChannelCommand } from "../src/command/internal-channel-command";
 import { Context } from "../src/context";
 import { Persistence } from "../src/persistence/persistence";
 import { Communication } from "../src/communication/communication";
@@ -143,6 +144,34 @@ describe("WorkerService", () => {
                 input: defaultObjectEncoder.encode("x"),
             }),
         ).rejects.toThrow(/Internal channel not_declared is not declared/);
+    });
+
+    it("rejects publishing to and waiting on the same internal channel in one waitUntil", async () => {
+        const publishAndWaitState: WorkflowState = {
+            get stateId() {
+                return "PW";
+            },
+            waitUntil(_ctx: Context, _input: unknown, _p: Persistence, communication: Communication): CommandRequest {
+                communication.publishInternalChannel("dup", "x");
+                return CommandRequest.forAllCommandCompleted(InternalChannelCommand.byName("dup"));
+            },
+            execute: () => StateDecision.gracefulCompleteWorkflow(),
+        };
+        const wf: ObjectWorkflow = {
+            getWorkflowType: () => "publishAndWait",
+            getWorkflowStates: () => [StateDef.startingState(publishAndWaitState)],
+            getCommunicationSchema: () => [CommunicationMethodDef.internalChannelDef("dup")],
+        };
+        const registry = new Registry();
+        registry.addWorkflow(wf);
+
+        await expect(
+            new WorkerService(registry).handleWorkflowStateWaitUntil({
+                context: idlContext,
+                workflowType: "publishAndWait",
+                workflowStateId: "PW",
+            }),
+        ).rejects.toThrow(/publish and wait on the same internal channel/);
     });
 
     it("rejects an empty state decision returned from execute", async () => {

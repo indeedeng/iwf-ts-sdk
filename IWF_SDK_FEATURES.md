@@ -412,38 +412,35 @@ and `publishInternalChannel` reject undeclared keys/channels. The RPC bypass-cac
 
 A focused audit of the TypeScript SDK against the Java SDK (the canonical reference) on 2026-06-30.
 Both SDKs generate from the same `iwf-idl`, so the **wire contract matches** — enums, request/response
-shapes, the `_SYS_*` system state IDs, and conditional-close encoding are all consistent. The
-differences below are in the ergonomic layer, a handful of real feature gaps, and one bug (now fixed).
+shapes, the `_SYS_*` system state IDs, and conditional-close encoding are all consistent. The audit
+surfaced one bug and a set of feature/validation gaps; these were closed under **AUTOPLAT-1847**. What
+remains is the ergonomic layer (intentional, idiomatic differences) plus one minor guardrail.
 
-### Fixed during the audit
-- **Worker RPC callback path** was `/api/v1/workflowWorkerRPC`; the IDL spec and Java both use
-  `/api/v1/workflowWorker/rpc`, so the server's RPC callback would have 404'd. Corrected in
-  `worker-service.ts`. (The waitUntil `/start` and execute `/decide` paths were already correct.)
+### Resolved (AUTOPLAT-1847)
+- **Worker RPC callback path** (bug) — was `/api/v1/workflowWorkerRPC`; corrected to
+  `/api/v1/workflowWorker/rpc` to match the IDL spec and Java, so the server's RPC callback routes.
+- **Execute-failure recovery state** — `WorkflowStateOptions` now has `executeApiFailurePolicy` /
+  `executeApiFailureProceedStateId` / `executeApiFailureProceedStateOptions`, emitted in `toIdl`, with
+  validation that a proceed-state requires a target ID and an execute retry policy.
+- **Per-API persistence loading policies** — the four waitUntil/execute-specific SA+DA loading-policy
+  fields are now exposed and emitted.
+- **`useMemoForDataAttributes` on start and on data-attribute reads** — set from the workflow's
+  `enableCaching` on `startWorkflow` and `getAllWorkflowDataAttributes` (was RPC-invoke only).
+- **No-wait "try-get" result APIs** — `Client.tryGettingSimpleWorkflowResult` /
+  `tryGettingComplexWorkflowResult`, backed by non-blocking unregistered methods.
+- **`workflowAlreadyStartedOptions`** (start) and **`skipUpdateReapply`** (reset) — added and mapped.
+- **RPC request `searchAttributes`** — `invokeRpc` now sends the registered SA key-types.
+- **Validation / guardrails** — single-starting-state enforcement; search-attribute type validation on
+  set (in-workflow); command-combination-ID validation; empty-`StateDecision` check on execute;
+  `recordEvent` duplicate-key guard; `triggerStateMovements` RPC-only runtime guard; duplicate
+  persistence-key registration rejection; publish-and-wait-on-same-internal-channel rejection in `waitUntil`.
+- **Correctness** — `setSearchAttributeInt` rejects values outside safe-integer range (no silent
+  precision loss past 2^53); datetime accessors now document and validate the real accepted formats
+  (Unix epoch-seconds or RFC3339 / Go layout `2006-01-02T15:04:05-07:00`).
 
-### Open functional gaps (Java has it, TS doesn't) — ranked
-1. **Execute-failure recovery state** — Java's `proceedToStateWhenExecuteRetryExhausted` (run a
-   recovery state when execute retries are exhausted) is absent: `WorkflowStateOptions` has no
-   `executeApiFailurePolicy`/proceed-state fields and `toIdl` never emits them, though the IDL
-   supports it. Largest gap.
-2. **Per-API persistence loading policies** — TS exposes only the combined
-   `searchAttributes`/`dataAttributesLoadingPolicy`; Java also has waitUntil- and execute-specific variants.
-3. **`useMemoForDataAttributes` on start and on data-attribute reads** — Java threads `enableCaching`
-   into both; TS sets it only on RPC invoke.
-4. **No-wait "try-get" result APIs** — Java has `tryGettingSimpleWorkflowResult` /
-   `tryGettingComplexWorkflowResult`; TS only offers the blocking (with-wait) forms.
-5. **`workflowAlreadyStartedOptions`** (start) and **`skipUpdateReapply`** (reset) — unsupported in TS.
-6. **RPC request omits `searchAttributes`** — Java sends registered SA key-types so the server loads
-   them for the RPC; TS does not.
-
-### Missing validation / guardrails (Java fails loud, TS is permissive)
-- No single-starting-state enforcement (TS picks the first match).
-- No search-/data-attribute value-type validation on set (TS doesn't track declared value types for
-  data attributes or channels).
-- No command-combination-ID validation, no empty-`StateDecision` check on execute, no
-  `recordEvent` duplicate-key guard, no publish-and-wait-on-same-channel check.
-- `triggerStateMovements` has no RPC-only runtime guard (Java throws if called from a state method;
-  TS ignores it there — it *is* correctly wired in the RPC path).
-- Duplicate persistence-key / search-attribute-key registration isn't rejected (last-wins).
+### Not applicable by design
+- **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
+  `ObjectEncoder`, not `Class<T>`), so there is no value type to validate. Key/prefix validation *is* enforced.
 
 ### Intentional / idiomatic differences (not gaps)
 - No `Class`-based typing — TS uses the `ObjectEncoder` + generics instead of Java's runtime
@@ -456,12 +453,7 @@ differences below are in the ergonomic layer, a handful of real feature gaps, an
 - `updateWorkflowConfig` is TS-only (Java has no such client API). TS also adds cron validation,
   empty-type rejection, and richer command-result lookup helpers.
 
-### Correctness watch-outs (independent of parity)
-- `getSearchAttributeInt` returns a JS `number`, losing precision above 2^53 where Java uses `Long`.
-- The datetime accessor is documented as ISO-8601, but iWF expects epoch-seconds or the Go time
-  layout (`2006-01-02T15:04:05-07:00`).
-
 ---
 
 *Generated from analysis of `iwf-java-sdk`, `iwf-python-sdk`, and `iwf-golang-sdk` source on 2026-06-24.
-Parity notes (§16) added 2026-06-30.*
+Parity notes (§16) added 2026-06-30; gaps closed under AUTOPLAT-1847 the same day.*

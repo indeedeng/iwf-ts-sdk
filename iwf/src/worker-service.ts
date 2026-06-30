@@ -19,6 +19,7 @@ import { SkipWaitUntilResolver } from "./mapper/state-movement-mapper";
 import { ChannelInfoMap, CommunicationImpl } from "./communication/communication";
 import { PersistenceImpl, keyValuesToMap, searchAttributesToMap } from "./persistence/persistence";
 import { CommandRequest } from "./command-request";
+import { InternalChannelCommand } from "./command/internal-channel-command";
 import { StateDecision } from "./state-decision";
 import { shouldSkipWaitUntil } from "./workflow-state";
 import { NotRegisteredError, WorkflowDefinitionError } from "./errors";
@@ -59,6 +60,17 @@ export class WorkerService {
             typeof state.waitUntil === "function"
                 ? await state.waitUntil(context, input, io.persistence, io.communication)
                 : CommandRequest.empty();
+
+        // A state may not both publish to an internal channel and wait on it in the same call —
+        // the ordering of its own message vs the wait is ambiguous (matches the Java SDK).
+        const published = new Set(io.communication.getToPublishInternalChannel().map((p) => p.channelName));
+        commandRequest.getCommands.forEach((cmd) => {
+            if (cmd instanceof InternalChannelCommand && published.has(cmd.channelName)) {
+                throw new WorkflowDefinitionError(
+                    `It is not allowed to publish and wait on the same internal channel "${cmd.channelName}" in one waitUntil`,
+                );
+            }
+        });
 
         return {
             commandRequest: CommandRequestMapper.toIdlCommandRequest(commandRequest),
