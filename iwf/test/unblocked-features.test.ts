@@ -2,8 +2,9 @@ import { StateDecision } from "../src/state-decision";
 import { StateDecisionMapper } from "../src/mapper/state-decision-mapper";
 import { Client } from "../src/client";
 import { defaultObjectEncoder } from "../src/object-encoder";
-import { SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest } from "../../gen/iwfidl";
+import { SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
 import { UnregisteredClient } from "../src/unregistered-client";
+import { WorkflowUncompletedError } from "../src/errors";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
 import { localDefaultClientOptions } from "../src/client-options";
 import { Registry } from "../src/registry";
@@ -202,5 +203,39 @@ describe("useMemoForDataAttributes on start and reads (caching enabled)", () => 
         await client.getAllWorkflowDataAttributes(new CachingRpcWorkflow(), "wf-1");
         // 4th positional arg of unregistered.getWorkflowDataAttributes is useMemoForDataAttributes
         expect(unregistered.getWorkflowDataAttributes.mock.calls[0][3]).toBe(true);
+    });
+});
+
+describe("no-wait try-get result calls", () => {
+    const newClient = (): { client: UnregisteredClient; getPost: jest.Mock; withWaitPost: jest.Mock } => {
+        const client = new UnregisteredClient(localDefaultClientOptions());
+        const getPost = jest.fn();
+        const withWaitPost = jest.fn();
+        client.defaultApi.apiV1WorkflowGetPost = getPost as never;
+        client.defaultApi.apiV1WorkflowGetWithWaitPost = withWaitPost as never;
+        return { client, getPost, withWaitPost };
+    };
+
+    it("returns the result via the non-blocking endpoint when the workflow has closed", async () => {
+        const { client, getPost, withWaitPost } = newClient();
+        getPost.mockResolvedValue({
+            data: {
+                workflowStatus: WorkflowStatus.Completed,
+                results: [{ completedStateOutput: defaultObjectEncoder.encode("done") }],
+            },
+        });
+
+        const output = await client.getSimpleWorkflowResult("wf-1");
+
+        expect(defaultObjectEncoder.decode(output)).toBe("done");
+        expect(getPost).toHaveBeenCalledTimes(1);
+        expect(withWaitPost).not.toHaveBeenCalled(); // no long-poll
+    });
+
+    it("throws WorkflowUncompletedError without waiting when the workflow is still running", async () => {
+        const { client, getPost } = newClient();
+        getPost.mockResolvedValue({ data: { workflowStatus: WorkflowStatus.Running } });
+
+        await expect(client.getComplexWorkflowResult("wf-1")).rejects.toBeInstanceOf(WorkflowUncompletedError);
     });
 });

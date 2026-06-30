@@ -121,6 +121,26 @@ export class Client {
         return this.unregistered.getComplexWorkflowResultWithWait(workflowId, workflowRunId);
     }
 
+    /**
+     * Non-blocking: return the single result if the workflow has already closed, otherwise throw
+     * {@link WorkflowUncompletedError} (carrying the current status) instead of waiting.
+     */
+    public async tryGettingSimpleWorkflowResult<T = unknown>(
+        workflowId: string,
+        workflowRunId?: string,
+    ): Promise<T | undefined> {
+        const output = await this.unregistered.getSimpleWorkflowResult(workflowId, workflowRunId);
+        return this.encoder.decode<T>(output);
+    }
+
+    /** Non-blocking variant of {@link getComplexWorkflowResults}. */
+    public async tryGettingComplexWorkflowResult(
+        workflowId: string,
+        workflowRunId?: string,
+    ): Promise<StateCompletionOutput[]> {
+        return this.unregistered.getComplexWorkflowResult(workflowId, workflowRunId);
+    }
+
     public async describeWorkflow(workflowId: string, workflowRunId?: string): Promise<WorkflowGetResponse> {
         return this.unregistered.describeWorkflow(workflowId, workflowRunId);
     }

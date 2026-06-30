@@ -114,20 +114,21 @@ export class UnregisteredClient {
                 waitTimeSeconds: this.options.longPollWaitTimeSeconds,
             }),
         );
-        this.throwIfNotCompleted(response);
+        return this.extractSimpleResult(response);
+    }
 
-        const results = response.results ?? [];
-        const withOutput = results.filter((r) => r.completedStateOutput != null);
-        if (withOutput.length === 0) {
-            return undefined;
-        }
-        if (results.length !== 1 && withOutput.length !== 1) {
-            throw new Error(
-                `Workflow has more than one completion state output; use getComplexWorkflowResultWithWait. ` +
-                    `total=${results.length}, withOutput=${withOutput.length}`,
-            );
-        }
-        return (withOutput.length === 1 ? withOutput[0] : results[0]).completedStateOutput;
+    /**
+     * Non-blocking variant: return the single result if the workflow has already closed, otherwise
+     * throw {@link WorkflowUncompletedError} (which carries the current status) without long-polling.
+     */
+    public async getSimpleWorkflowResult(
+        workflowId: string,
+        workflowRunId?: string,
+    ): Promise<EncodedObject | undefined> {
+        const response = await this.call(() =>
+            this.defaultApi.apiV1WorkflowGetPost({ workflowId, workflowRunId, needsResults: true }),
+        );
+        return this.extractSimpleResult(response);
     }
 
     /** Long-poll for the results of a workflow that may complete with multiple state outputs. */
@@ -144,6 +145,37 @@ export class UnregisteredClient {
         );
         this.throwIfNotCompleted(response);
         return response.results ?? [];
+    }
+
+    /**
+     * Non-blocking variant: return the multi-state results if the workflow has already closed,
+     * otherwise throw {@link WorkflowUncompletedError} without long-polling.
+     */
+    public async getComplexWorkflowResult(
+        workflowId: string,
+        workflowRunId?: string,
+    ): Promise<StateCompletionOutput[]> {
+        const response = await this.call(() =>
+            this.defaultApi.apiV1WorkflowGetPost({ workflowId, workflowRunId, needsResults: true }),
+        );
+        this.throwIfNotCompleted(response);
+        return response.results ?? [];
+    }
+
+    private extractSimpleResult(response: WorkflowGetResponse): EncodedObject | undefined {
+        this.throwIfNotCompleted(response);
+        const results = response.results ?? [];
+        const withOutput = results.filter((r) => r.completedStateOutput != null);
+        if (withOutput.length === 0) {
+            return undefined;
+        }
+        if (results.length !== 1 && withOutput.length !== 1) {
+            throw new Error(
+                `Workflow has more than one completion state output; use getComplexWorkflowResult. ` +
+                    `total=${results.length}, withOutput=${withOutput.length}`,
+            );
+        }
+        return (withOutput.length === 1 ? withOutput[0] : results[0]).completedStateOutput;
     }
 
     /** Get workflow status and metadata without waiting for completion. */
