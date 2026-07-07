@@ -1,6 +1,12 @@
 {
     "name": "iwf-typescript-sdk",
     "private": true,
+    "version": "0.1.0",
+    "main": "dist/iwf/index.js",
+    "types": "dist/iwf/index.d.ts",
+    "files": [
+        "dist"
+    ],
     "keywords": [
         "iwf",
         "workflow"
