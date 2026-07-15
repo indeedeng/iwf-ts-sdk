@@ -86,10 +86,15 @@ export type {
     WorkflowRetryPolicy,
     WorkflowConfig,
 } from "../gen/iwfidl";
+
 export {
     SearchAttributeValueType,
     WorkflowStatus,
     IDReusePolicy,
+    ExecutingStateIdMode,
+    ExecuteApiFailurePolicy,
+    WorkflowErrorType,
+    ErrorSubStatus,
     WorkflowResetType,
     WorkflowStopType,
     WorkflowConditionalCloseType,
