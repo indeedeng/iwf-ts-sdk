@@ -1,9 +1,12 @@
 name: Integration Test
 on:
+  # Run on any pull request activity — opened, reopened, and every push to the
+  # PR branch (synchronize) — so it gates PRs before merge, targeting any branch.
   pull_request:
-  # TEMPORARY: run on every push to any branch so we can validate the workflow
-  # before merging to main. Revert to `branches: [main]` once it's proven out.
+  # Also run on any commit/merge that lands on main.
   push:
+    branches:
+      - main
 
 jobs:
   tests:
