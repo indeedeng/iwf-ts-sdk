@@ -29,18 +29,33 @@ jobs:
       - name: Wait for iwf-server
         run: |
           echo "Waiting for iwf-server on :8801 ..."
-          # The API is POST-only, so probe for TCP reachability: curl exits non-zero on
+          # The API is POST-only, so probe for reachability: curl exits non-zero on
           # connection-refused and zero once the server answers with any HTTP response.
-          for i in $(seq 1 60); do
-            if curl -s -o /dev/null http://localhost:8801; then
-              echo "iwf-server is up"
+          # -m/-connect-timeout keep a hung socket from stalling the loop.
+          attempts=90
+          for i in $(seq 1 "$attempts"); do
+            if curl -s -o /dev/null --connect-timeout 3 --max-time 5 http://localhost:8801; then
+              echo "iwf-server is up (after $((i * 3))s)"
               break
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "iwf-server did not become ready in time" >&2
+            if [ "$i" -eq "$attempts" ]; then
+              echo "::error::iwf-server did not become ready in time" >&2
+              echo "===== docker ps -a ====="
+              docker ps -a
+              echo "===== iwf-server logs ====="
+              docker logs iwf-server 2>&1 | tail -100 || true
+              echo "===== temporal logs ====="
+              docker logs temporal-iwf 2>&1 | tail -60 || true
+              echo "===== elasticsearch logs ====="
+              docker logs temporal-elasticsearch-iwf 2>&1 | tail -40 || true
               exit 1
             fi
-            sleep 2
+            # Periodic heartbeat so the log shows progress and container state.
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "  ...still waiting (${i}/${attempts}); container states:"
+              docker ps --format '    {{.Names}}: {{.Status}}'
+            fi
+            sleep 3
           done
           # Give temporal-admin-tools time to register the iWF system search attributes.
           sleep 20
