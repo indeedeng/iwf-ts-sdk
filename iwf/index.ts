@@ -13,7 +13,7 @@ export { Context, ContextBuilder } from "./src/context";
 export { StateDecision, StateDecisionBuilder } from "./src/state-decision";
 export type { ConditionalClose } from "./src/state-decision";
 export { StateMovement, StateMovementBuilder } from "./src/state-movement";
-export type { WorkflowStateOptions } from "./src/workflow-state-options";
+export { WorkflowStateOptions } from "./src/workflow-state-options";
 
 // Commands & results
 export type { BaseCommand } from "./src/base-command";
