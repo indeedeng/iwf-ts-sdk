@@ -1,0 +1,53 @@
+name: Integration Test
+on:
+  pull_request:
+  # TEMPORARY: run on every push to any branch so we can validate the workflow
+  # before merging to main. Revert to `branches: [main]` once it's proven out.
+  push:
+
+jobs:
+  tests:
+    name: "Integration testing"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up iWF environment"
+        run: docker compose -f scripts/integ/docker-compose.yml up -d
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Wait for iwf-server
+        run: |
+          echo "Waiting for iwf-server on :8801 ..."
+          # The API is POST-only, so probe for TCP reachability: curl exits non-zero on
+          # connection-refused and zero once the server answers with any HTTP response.
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://localhost:8801; then
+              echo "iwf-server is up"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "iwf-server did not become ready in time" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          # Give temporal-admin-tools time to register the iWF system search attributes.
+          sleep 20
+
+      - name: Run integration tests
+        run: npm run test:integ
+
+      - name: Dump docker logs
+        if: always()
+        uses: jwalton/gh-docker-logs@v2
