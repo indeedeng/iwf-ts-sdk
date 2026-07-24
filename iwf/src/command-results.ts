@@ -52,6 +52,10 @@ export class CommandResults {
         return this.getSignalResultByCommandId(commandId)?.value;
     }
 
+    public getAllInternalChannelCommandResult(): InternalChannelCommandResult[] {
+        return this.internalChannelResults;
+    }
+
     public getInternalChannelResultByCommandId(commandId: string): InternalChannelCommandResult | undefined {
         return this.internalChannelResults.find((r) => r.commandId === commandId);
     }
