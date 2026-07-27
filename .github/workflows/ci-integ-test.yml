@@ -1,0 +1,71 @@
+name: Integration Test
+on:
+  # Run on any pull request activity — opened, reopened, and every push to the
+  # PR branch (synchronize) — so it gates PRs before merge, targeting any branch.
+  pull_request:
+  # Also run on any commit/merge that lands on main.
+  push:
+    branches:
+      - main
+
+jobs:
+  tests:
+    name: "Integration testing"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set up iWF environment"
+        run: docker compose -f scripts/integ/docker-compose.yml up -d
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Wait for iwf-server
+        run: |
+          echo "Waiting for iwf-server on :8801 ..."
+          # The API is POST-only, so probe for reachability: curl exits non-zero on
+          # connection-refused and zero once the server answers with any HTTP response.
+          # -m/-connect-timeout keep a hung socket from stalling the loop.
+          attempts=90
+          for i in $(seq 1 "$attempts"); do
+            if curl -s -o /dev/null --connect-timeout 3 --max-time 5 http://localhost:8801; then
+              echo "iwf-server is up (after $((i * 3))s)"
+              break
+            fi
+            if [ "$i" -eq "$attempts" ]; then
+              echo "::error::iwf-server did not become ready in time" >&2
+              echo "===== docker ps -a ====="
+              docker ps -a
+              echo "===== iwf-server logs ====="
+              docker logs iwf-server 2>&1 | tail -100 || true
+              echo "===== temporal logs ====="
+              docker logs temporal-iwf 2>&1 | tail -60 || true
+              echo "===== elasticsearch logs ====="
+              docker logs temporal-elasticsearch-iwf 2>&1 | tail -40 || true
+              exit 1
+            fi
+            # Periodic heartbeat so the log shows progress and container state.
+            if [ $((i % 10)) -eq 0 ]; then
+              echo "  ...still waiting (${i}/${attempts}); container states:"
+              docker ps --format '    {{.Names}}: {{.Status}}'
+            fi
+            sleep 3
+          done
+          # Give temporal-admin-tools time to register the iWF system search attributes.
+          sleep 20
+
+      - name: Run integration tests
+        run: npm run test:integ
+
+      - name: Dump docker logs
+        if: always()
+        uses: jwalton/gh-docker-logs@v2
