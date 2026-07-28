@@ -3,7 +3,7 @@ import { StateDecisionMapper } from "../src/mapper/state-decision-mapper";
 import { CommandResultsMapper } from "../src/mapper/command-results-mapper";
 import { Client } from "../src/client";
 import { defaultObjectEncoder } from "../src/object-encoder";
-import { PersistenceLoadingType, SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
+import { KeyValue, PersistenceLoadingType, SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
 import { UnregisteredClient } from "../src/unregistered-client";
 import { WorkflowUncompletedError } from "../src/errors";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
@@ -54,6 +54,18 @@ class CachingRpcWorkflow implements ObjectWorkflow {
     }
     getPersistenceOptions(): PersistenceOptions {
         return new PersistenceOptions(true);
+    }
+}
+
+class PrefixedDataAttributeWorkflow implements ObjectWorkflow {
+    getWorkflowType(): string {
+        return "prefixedDataAttributes";
+    }
+    getWorkflowStates(): StateDef[] {
+        return [StateDef.startingState(rpcState)];
+    }
+    getPersistenceSchema(): PersistenceFieldDef[] {
+        return [PersistenceFieldDef.dataAttributeDef("user"), PersistenceFieldDef.dataAttributePrefixDef("dyn_")];
     }
 }
 
@@ -235,6 +247,37 @@ describe("useMemoForDataAttributes on start and reads (caching enabled)", () => 
         const { client, unregistered } = buildClient();
         await client.getWorkflowDataAttributes(new CachingRpcWorkflow(), "wf-1", ["k"]);
         expect(unregistered.getWorkflowDataAttributes.mock.calls[0][3]).toBe(true);
+    });
+});
+
+describe("getAllWorkflowDataAttributes with prefix-declared keys", () => {
+    const buildClient = (objects: KeyValue[]): { client: Client; unregistered: { getWorkflowDataAttributes: jest.Mock } } => {
+        const registry = new Registry();
+        registry.addWorkflow(new PrefixedDataAttributeWorkflow());
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unregistered = (client as any).unregistered;
+        unregistered.getWorkflowDataAttributes = jest.fn(() => Promise.resolve(objects));
+        return { client, unregistered };
+    };
+
+    it("sends no key filter so the server returns every attribute", async () => {
+        const { client, unregistered } = buildClient([]);
+        await client.getAllWorkflowDataAttributes(new PrefixedDataAttributeWorkflow(), "wf-1");
+        // 2nd positional arg is the key filter; undefined tells the iwf server to return all of them.
+        // Sending the exactly-declared keys instead would exclude anything named under "dyn_".
+        expect(unregistered.getWorkflowDataAttributes.mock.calls[0][1]).toBeUndefined();
+    });
+
+    it("returns runtime-named attributes that were declared by prefix", async () => {
+        const { client } = buildClient([
+            { key: "user", value: defaultObjectEncoder.encode("alice") },
+            { key: "dyn_42", value: defaultObjectEncoder.encode({ n: 42 }) },
+        ]);
+        const attributes = await client.getAllWorkflowDataAttributes(new PrefixedDataAttributeWorkflow(), "wf-1");
+        expect(attributes.get("user")).toBe("alice");
+        expect(attributes.get("dyn_42")).toEqual({ n: 42 });
+        expect(attributes.size).toBe(2);
     });
 });
 

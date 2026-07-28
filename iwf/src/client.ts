@@ -244,8 +244,10 @@ export class Client {
         workflowId: string,
         workflowRunId?: string,
     ): Promise<Map<string, unknown>> {
-        const keys = Array.from(this.registry.getDataAttributeKeys(workflow.getWorkflowType()));
-        return this.getWorkflowDataAttributes(workflow, workflowId, keys.length > 0 ? keys : undefined, workflowRunId);
+        // Send no keys so the server returns every data attribute. Sending the registry's
+        // exactly-declared keys would silently drop runtime-named attributes declared via a
+        // dataAttributePrefixDef (matches the Java SDK, whose getAllDataAttributes passes null keys).
+        return this.getWorkflowDataAttributes(workflow, workflowId, undefined, workflowRunId);
     }
 
     public async getWorkflowSearchAttributes(
