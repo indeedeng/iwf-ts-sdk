@@ -5,8 +5,11 @@ import { EmptyInputWorkflow } from "./src/basic/empty-input-workflow";
 import { MixOfWithWaitUntilAndSkipWaitUntilWorkflow } from "./src/basic/mix-of-with-wait-until-and-skip-wait-until-workflow";
 import { ModelInputWorkflow } from "./src/basic/model-input-workflow";
 import { ProceedOnStateStartFailWorkflow } from "./src/basic/proceed-on-state-start-fail-workflow";
+import { BasicPersistenceWorkflow } from "./src/persistence/basic-persistence-workflow";
+import { SetDataAttributeWorkflow, SetSearchAttributeWorkflow } from "./src/persistence/set-attribute-workflows";
 import { DeadEndStateWorkflow } from "./src/rpc/dead-end-state-workflow";
 import { NoStateWorkflow } from "./src/rpc/no-state-workflow";
+import { RpcMemoWorkflow } from "./src/rpc/rpc-memo-workflow";
 import { RpcWorkflow } from "./src/rpc/rpc-workflow";
 
 /**
@@ -24,9 +27,15 @@ export function allWorkflows(): ObjectWorkflow[] {
         new ModelInputWorkflow(),
         new ProceedOnStateStartFailWorkflow(),
 
+        // persistence
+        new BasicPersistenceWorkflow(),
+        new SetDataAttributeWorkflow(),
+        new SetSearchAttributeWorkflow(),
+
         // rpc
         new DeadEndStateWorkflow(),
         new NoStateWorkflow(),
+        new RpcMemoWorkflow(),
         new RpcWorkflow(),
     ];
 }

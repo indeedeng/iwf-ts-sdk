@@ -9,6 +9,7 @@ import {
     Persistence,
     PersistenceFieldDef,
     PersistenceLoadingType,
+    RpcHandler,
     SearchAttributeValueType,
     StateDecision,
     StateDef,
@@ -102,6 +103,76 @@ function requireValidContext(context: Context): void {
     }
 }
 
+/**
+ * The RPC bodies shared by RpcWorkflow and RpcMemoWorkflow. Java duplicates these across the two
+ * fixtures; they are identical, so they live here once and both schemas reference them.
+ */
+export const sharedRpcHandlers = {
+    testRpcFunc1: ((context, input, persistence, communication) => {
+        requireValidContext(context);
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, null); // test setting to null
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
+        persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
+        persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
+        communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
+        communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
+        return RPC_OUTPUT;
+    }) satisfies RpcHandler,
+
+    testRpcFunc0: ((context, _input, persistence, communication) => {
+        requireValidContext(context);
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, HARDCODED_STR);
+        persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, HARDCODED_STR);
+        persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
+        communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
+        communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
+        return RPC_OUTPUT;
+    }) satisfies RpcHandler,
+
+    testRpcProc1: ((context, input, persistence, communication) => {
+        requireValidContext(context);
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
+        persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
+        persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
+        communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
+        communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
+    }) satisfies RpcHandler,
+
+    testRpcProc0: ((context, _input, persistence, communication) => {
+        requireValidContext(context);
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, HARDCODED_STR);
+        persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, HARDCODED_STR);
+        persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
+        communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
+        communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
+    }) satisfies RpcHandler,
+
+    testRpcFunc1Readonly: ((context) => {
+        requireValidContext(context);
+        return RPC_OUTPUT;
+    }) satisfies RpcHandler,
+
+    testRpcSetDataAttribute: ((context, input, persistence) => {
+        requireValidContext(context);
+        persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
+    }) satisfies RpcHandler,
+
+    testRpcGetDataAttribute: ((context, _input, persistence) => {
+        requireValidContext(context);
+        return persistence.getDataAttribute<string>(TEST_DATA_OBJECT_KEY);
+    }) satisfies RpcHandler,
+
+    testRpcSetKeyword: ((context, input, persistence) => {
+        requireValidContext(context);
+        persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
+    }) satisfies RpcHandler,
+
+    testRpcGetKeyword: ((context, _input, persistence) => {
+        requireValidContext(context);
+        return persistence.getSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD);
+    }) satisfies RpcHandler,
+};
+
 /** Ports Java's `RpcWorkflow` and its @RPC methods. */
 export class RpcWorkflow implements ObjectWorkflow {
     getWorkflowType(): string {
@@ -139,69 +210,15 @@ export class RpcWorkflow implements ObjectWorkflow {
                 },
             ),
 
-            CommunicationMethodDef.rpcMethodDef("testRpcFunc1", (context, input, persistence, communication) => {
-                requireValidContext(context);
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, null); // test setting to null
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
-                persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
-                persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
-                communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
-                communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
-                return RPC_OUTPUT;
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcFunc0", (context, _input, persistence, communication) => {
-                requireValidContext(context);
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, HARDCODED_STR);
-                persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, HARDCODED_STR);
-                persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
-                communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
-                communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
-                return RPC_OUTPUT;
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcProc1", (context, input, persistence, communication) => {
-                requireValidContext(context);
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
-                persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
-                persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
-                communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
-                communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcProc0", (context, _input, persistence, communication) => {
-                requireValidContext(context);
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, HARDCODED_STR);
-                persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, HARDCODED_STR);
-                persistence.setSearchAttributeInt(TEST_SEARCH_ATTRIBUTE_INT, RPC_OUTPUT);
-                communication.publishInternalChannel(INTERNAL_CHANNEL_NAME);
-                communication.triggerStateMovements(StateMovement.create("RpcWorkflowState2"));
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcFunc1Readonly", (context) => {
-                requireValidContext(context);
-                return RPC_OUTPUT;
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcSetDataAttribute", (context, input, persistence) => {
-                requireValidContext(context);
-                persistence.setDataAttribute(TEST_DATA_OBJECT_KEY, input);
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcGetDataAttribute", (context, _input, persistence) => {
-                requireValidContext(context);
-                return persistence.getDataAttribute<string>(TEST_DATA_OBJECT_KEY);
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcSetKeyword", (context, input, persistence) => {
-                requireValidContext(context);
-                persistence.setSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD, input as string);
-            }),
-
-            CommunicationMethodDef.rpcMethodDef("testRpcGetKeyword", (context, _input, persistence) => {
-                requireValidContext(context);
-                return persistence.getSearchAttributeKeyword(TEST_SEARCH_ATTRIBUTE_KEYWORD);
-            }),
+            CommunicationMethodDef.rpcMethodDef("testRpcFunc1", sharedRpcHandlers.testRpcFunc1),
+            CommunicationMethodDef.rpcMethodDef("testRpcFunc0", sharedRpcHandlers.testRpcFunc0),
+            CommunicationMethodDef.rpcMethodDef("testRpcProc1", sharedRpcHandlers.testRpcProc1),
+            CommunicationMethodDef.rpcMethodDef("testRpcProc0", sharedRpcHandlers.testRpcProc0),
+            CommunicationMethodDef.rpcMethodDef("testRpcFunc1Readonly", sharedRpcHandlers.testRpcFunc1Readonly),
+            CommunicationMethodDef.rpcMethodDef("testRpcSetDataAttribute", sharedRpcHandlers.testRpcSetDataAttribute),
+            CommunicationMethodDef.rpcMethodDef("testRpcGetDataAttribute", sharedRpcHandlers.testRpcGetDataAttribute),
+            CommunicationMethodDef.rpcMethodDef("testRpcSetKeyword", sharedRpcHandlers.testRpcSetKeyword),
+            CommunicationMethodDef.rpcMethodDef("testRpcGetKeyword", sharedRpcHandlers.testRpcGetKeyword),
         ];
     }
 }
