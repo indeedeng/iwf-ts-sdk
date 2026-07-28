@@ -174,11 +174,7 @@ describe("BasicTest", () => {
         expect(info.workflowStatus).toBe(WorkflowStatus.Running);
     });
 
-    // TODO(AUTOPLAT-1935): un-skip once waitForStateExecutionCompletionByKey sends the state id.
-    // It currently sends only workflowId + waitForKey, which the server cannot resolve — it responds
-    // 500 with a nil-pointer dereference. Java sends stateId as well, so fixing this is a signature
-    // change and is tracked separately.
-    it.skip("testWorkflowWaitForStateCompletionWithWaitForKey", async () => {
+    it("testWorkflowWaitForStateCompletionWithWaitForKey", async () => {
         const client = newClient();
         const workflowId = uniqueId("wf-wait-for-state-completion-with-wait-for-key-test-id");
         const waitForKey = "testKey";
@@ -188,7 +184,7 @@ describe("BasicTest", () => {
             waitForCompletionStateIds: [stateId],
         });
 
-        await client.waitForStateExecutionCompletionByKey(workflowId, waitForKey);
+        await client.waitForStateExecutionCompletionByKey(workflowId, stateId, waitForKey);
         await client.waitForWorkflowCompletion(workflowId);
 
         const info = await client.describeWorkflow(workflowId);
