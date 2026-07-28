@@ -408,12 +408,19 @@ export class Client {
         return this.encoder.decode<T>(output?.completedStateOutput);
     }
 
-    /** Long-poll for the state execution tagged with the given wait-for key; returns its decoded output. */
+    /**
+     * Long-poll for the state execution tagged with the given wait-for key; returns its decoded output.
+     *
+     * The state id is required: the server locates the wait-for-key completion by state, and a request
+     * carrying only the key cannot be resolved (it fails the request outright). Matches the Java SDK,
+     * which sends workflowId, stateId, and waitForKey together.
+     */
     public async waitForStateExecutionCompletionByKey<T = unknown>(
         workflowId: string,
+        stateId: string,
         waitForKey: string,
     ): Promise<T | undefined> {
-        const output = await this.unregistered.waitForStateCompletion({ workflowId, waitForKey });
+        const output = await this.unregistered.waitForStateCompletion({ workflowId, stateId, waitForKey });
         return this.encoder.decode<T>(output?.completedStateOutput);
     }
 
