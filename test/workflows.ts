@@ -5,6 +5,9 @@ import { EmptyInputWorkflow } from "./src/basic/empty-input-workflow";
 import { MixOfWithWaitUntilAndSkipWaitUntilWorkflow } from "./src/basic/mix-of-with-wait-until-and-skip-wait-until-workflow";
 import { ModelInputWorkflow } from "./src/basic/model-input-workflow";
 import { ProceedOnStateStartFailWorkflow } from "./src/basic/proceed-on-state-start-fail-workflow";
+import { DeadEndStateWorkflow } from "./src/rpc/dead-end-state-workflow";
+import { NoStateWorkflow } from "./src/rpc/no-state-workflow";
+import { RpcWorkflow } from "./src/rpc/rpc-workflow";
 
 /**
  * Every workflow the integ worker serves, mirroring the Java suite's global
@@ -20,6 +23,11 @@ export function allWorkflows(): ObjectWorkflow[] {
         new MixOfWithWaitUntilAndSkipWaitUntilWorkflow(),
         new ModelInputWorkflow(),
         new ProceedOnStateStartFailWorkflow(),
+
+        // rpc
+        new DeadEndStateWorkflow(),
+        new NoStateWorkflow(),
+        new RpcWorkflow(),
     ];
 }
 
