@@ -593,6 +593,16 @@ A third pass (full diff catalog, serialization included) then fixed the remainin
 - **Client API**: `publishToInternalChannelBatch`, a `waitForWorkflowCompletion` void alias, and
   permitting a workflow with no starting state (matches Java).
 
+### Resolved (AUTOPLAT-1934)
+Found while porting the Java integration suite (AUTOPLAT-1933), after the three audits below:
+- **Bug — `getAllWorkflowDataAttributes` omitted prefix-declared attributes.** It resolved the
+  registry's *exactly*-declared keys and sent them as a filter, so any runtime-named key written under
+  a `dataAttributePrefixDef` was silently missing from the result. It now sends no key filter, which
+  the server treats as "return everything" — matching Java's `getAllDataAttributes`, which passes
+  `null` keys for exactly this reason. (`getAllWorkflowSearchAttributes` is *not* affected: Java also
+  builds the full declared key-type list there, since the server needs the types to decode, so
+  sending all declared keys is the correct behavior.)
+
 ### Not applicable by design
 - **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
   `ObjectEncoder`, not `Class<T>`), so there is no value type to validate. Key/prefix validation *is* enforced.
@@ -629,7 +639,10 @@ From the 2026-06-30 re-audits; intentionally left as-is:
 ### Third full audit (2026-06-30)
 A third complete TS↔Java diff (serialization included) confirmed the SDK is wire- and behavior-aligned:
 **~110 MATCH · ~160 intentional/idiomatic differences · ~25 minor non-intentional deltas — zero
-correctness gaps**, with every previously-fixed item verified MATCH. The remaining non-intentional
+correctness gaps**, with every previously-fixed item verified MATCH. That zero-gap conclusion did not
+hold: the `getAllWorkflowDataAttributes` prefix-key bug above (AUTOPLAT-1934) escaped all three audits
+and was only caught by porting the Java integration tests — so treat the audits as thorough on the
+wire contract but not exhaustive on registry-derived request arguments. The remaining non-intentional
 deltas are ergonomics/convenience only (e.g. no empty-keys guard on attribute reads, missing
 `getStateResultsSize()`/`getErrorDetails()`/`dockerDefault` conveniences, `Context.workflowType`
 optional vs required, `2^n` vs Feign's ~1.5× backoff curve) and are catalogued above as accepted.
