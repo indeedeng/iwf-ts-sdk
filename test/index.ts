@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import type { Server } from "http";
-import { Registry, WorkerService } from "../iwf";
-import { BasicWorkflow } from "./src/basic-workflow";
+import { WorkerService } from "../iwf";
+import { createRegistry } from "./workflows";
 
 export const DEFAULT_WORKER_PORT = 8802;
 
@@ -18,11 +18,9 @@ function handle(fn: (body: any) => Promise<unknown>) {
     };
 }
 
-/** Build the iWF worker Express app with the sample workflows registered. */
+/** Build the iWF worker Express app with every test workflow registered. */
 export function createWorkerApp(): express.Express {
-    const registry = new Registry();
-    registry.addWorkflow(new BasicWorkflow());
-    const worker = new WorkerService(registry);
+    const worker = new WorkerService(createRegistry());
 
     const app = express();
     app.use(express.json());
