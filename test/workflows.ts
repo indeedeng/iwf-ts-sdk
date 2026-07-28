@@ -5,12 +5,17 @@ import { EmptyInputWorkflow } from "./src/basic/empty-input-workflow";
 import { MixOfWithWaitUntilAndSkipWaitUntilWorkflow } from "./src/basic/mix-of-with-wait-until-and-skip-wait-until-workflow";
 import { ModelInputWorkflow } from "./src/basic/model-input-workflow";
 import { ProceedOnStateStartFailWorkflow } from "./src/basic/proceed-on-state-start-fail-workflow";
+import { ForceFailWorkflow } from "./src/forcefail/force-fail-workflow";
 import { BasicPersistenceWorkflow } from "./src/persistence/basic-persistence-workflow";
 import { SetDataAttributeWorkflow, SetSearchAttributeWorkflow } from "./src/persistence/set-attribute-workflows";
 import { DeadEndStateWorkflow } from "./src/rpc/dead-end-state-workflow";
 import { NoStateWorkflow } from "./src/rpc/no-state-workflow";
 import { RpcMemoWorkflow } from "./src/rpc/rpc-memo-workflow";
 import { RpcWorkflow } from "./src/rpc/rpc-workflow";
+import { BasicSignalWorkflow } from "./src/signal/basic-signal-workflow";
+import { WorkflowBasicStateFail } from "./src/stateapifail/workflow-basic-state-fail";
+import { StateApiTimeoutFailWorkflow } from "./src/stateapitimeout/state-api-timeout-fail-workflow";
+import { EmptyStateDecisionWorkflow } from "./src/statedecision/empty-state-decision-workflow";
 
 /**
  * Every workflow the integ worker serves, mirroring the Java suite's global
@@ -37,6 +42,13 @@ export function allWorkflows(): ObjectWorkflow[] {
         new NoStateWorkflow(),
         new RpcMemoWorkflow(),
         new RpcWorkflow(),
+
+        // signal / failure modes
+        new BasicSignalWorkflow(),
+        new EmptyStateDecisionWorkflow(),
+        new ForceFailWorkflow(),
+        new StateApiTimeoutFailWorkflow(),
+        new WorkflowBasicStateFail(),
     ];
 }
 
