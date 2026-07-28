@@ -281,6 +281,51 @@ describe("getAllWorkflowDataAttributes with prefix-declared keys", () => {
     });
 });
 
+describe("waitForStateExecutionCompletion request shape", () => {
+    const buildClient = (
+        output?: unknown,
+    ): { client: Client; unregistered: { waitForStateCompletion: jest.Mock } } => {
+        const registry = new Registry();
+        registry.addWorkflow(new CachingRpcWorkflow());
+        const client = new Client(registry, localDefaultClientOptions());
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unregistered = (client as any).unregistered;
+        unregistered.waitForStateCompletion = jest.fn(() =>
+            Promise.resolve(
+                output === undefined ? undefined : { completedStateOutput: defaultObjectEncoder.encode(output) },
+            ),
+        );
+        return { client, unregistered };
+    };
+
+    it("sends the state id alongside the wait-for key", async () => {
+        const { client, unregistered } = buildClient();
+        await client.waitForStateExecutionCompletionByKey("wf-1", "S1", "testKey");
+        // The server resolves a wait-for-key completion by state, so omitting stateId makes the request
+        // unresolvable. Java sends all three fields together.
+        expect(unregistered.waitForStateCompletion.mock.calls[0][0]).toEqual({
+            workflowId: "wf-1",
+            stateId: "S1",
+            waitForKey: "testKey",
+        });
+    });
+
+    it("identifies the Nth execution as stateId-number", async () => {
+        const { client, unregistered } = buildClient();
+        await client.waitForStateExecutionCompletion("wf-1", "S1", 2);
+        expect(unregistered.waitForStateCompletion.mock.calls[0][0]).toEqual({
+            workflowId: "wf-1",
+            stateExecutionId: "S1-2",
+        });
+    });
+
+    it("decodes the completed state output", async () => {
+        const { client } = buildClient({ done: true });
+        const result = await client.waitForStateExecutionCompletionByKey("wf-1", "S1", "testKey");
+        expect(result).toEqual({ done: true });
+    });
+});
+
 describe("no-wait try-get result calls", () => {
     const newClient = (): { client: UnregisteredClient; getPost: jest.Mock; withWaitPost: jest.Mock } => {
         const client = new UnregisteredClient(localDefaultClientOptions());

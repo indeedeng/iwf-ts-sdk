@@ -343,7 +343,8 @@ target a specific run.
 **Search** — `searchWorkflow(query, pageSize?, nextPageToken?)` — SQL-like query over search attributes, paginated.
 
 **State-execution completion** — `waitForStateExecutionCompletion<T>(workflowId, stateId, stateExecutionNumber)`
-and `waitForStateExecutionCompletionByKey<T>(workflowId, waitForKey)` (both long-poll and decode the output).
+and `waitForStateExecutionCompletionByKey<T>(workflowId, stateId, waitForKey)` (both long-poll and decode
+the output).
 
 **Ops** — `skipTimer(workflowId, stateId, stateExecutionNumber, {commandId?|commandIndex?}, runId?)` and
 `updateWorkflowConfig(workflowId, config, runId?)`.
@@ -593,8 +594,16 @@ A third pass (full diff catalog, serialization included) then fixed the remainin
 - **Client API**: `publishToInternalChannelBatch`, a `waitForWorkflowCompletion` void alias, and
   permitting a workflow with no starting state (matches Java).
 
-### Resolved (AUTOPLAT-1934)
+### Resolved (AUTOPLAT-1934, AUTOPLAT-1935)
 Found while porting the Java integration suite (AUTOPLAT-1933), after the three audits below:
+- **Bug — `waitForStateExecutionCompletionByKey` omitted the state id.** It sent only `workflowId` and
+  `waitForKey`; the server resolves a wait-for-key completion by state, so that shape is unresolvable —
+  it responded 500 with a nil-pointer dereference rather than a client error. The method now takes and
+  sends `stateId`, matching Java's `UnregisteredClient.waitForStateExecutionCompletion(workflowId,
+  stateId, waitForKey)`. **Breaking signature change**: `(workflowId, waitForKey)` →
+  `(workflowId, stateId, waitForKey)`; the old signature could not be made to work, since callers had
+  no way to supply the state id. (The `stateExecutionNumber` variant was already correct — it builds
+  `stateId-number`, matching Java's `getStateExecutionId`.)
 - **Bug — `getAllWorkflowDataAttributes` omitted prefix-declared attributes.** It resolved the
   registry's *exactly*-declared keys and sent them as a filter, so any runtime-named key written under
   a `dataAttributePrefixDef` was silently missing from the result. It now sends no key filter, which
@@ -640,9 +649,10 @@ From the 2026-06-30 re-audits; intentionally left as-is:
 A third complete TS↔Java diff (serialization included) confirmed the SDK is wire- and behavior-aligned:
 **~110 MATCH · ~160 intentional/idiomatic differences · ~25 minor non-intentional deltas — zero
 correctness gaps**, with every previously-fixed item verified MATCH. That zero-gap conclusion did not
-hold: the `getAllWorkflowDataAttributes` prefix-key bug above (AUTOPLAT-1934) escaped all three audits
-and was only caught by porting the Java integration tests — so treat the audits as thorough on the
-wire contract but not exhaustive on registry-derived request arguments. The remaining non-intentional
+hold: two request-shape bugs above escaped all three audits and were only caught by porting the Java
+integration tests — the `getAllWorkflowDataAttributes` prefix-key filter (AUTOPLAT-1934) and the missing
+`stateId` on `waitForStateExecutionCompletionByKey` (AUTOPLAT-1935). Treat the audits as thorough on the
+wire contract's *types* but not on which fields the client actually populates. The remaining non-intentional
 deltas are ergonomics/convenience only (e.g. no empty-keys guard on attribute reads, missing
 `getStateResultsSize()`/`getErrorDetails()`/`dockerDefault` conveniences, `Context.workflowType`
 optional vs required, `2^n` vs Feign's ~1.5× backoff curve) and are catalogued above as accepted.
