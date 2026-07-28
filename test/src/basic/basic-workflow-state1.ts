@@ -40,9 +40,7 @@ export class BasicWorkflowState1 implements WorkflowState {
         const output = (input as number) + 1;
         // Java: StateDecision.singleNextState(BasicWorkflowState2.class, output, "testKey").
         // TS has no waitForKey overload on singleNextState, so build the movement directly.
-        return StateDecision.multiNextStates(
-            StateMovement.create("BasicWorkflowState2", output, undefined, "testKey"),
-        );
+        return StateDecision.multiNextStates(StateMovement.create("BasicWorkflowState2", output, undefined, "testKey"));
     }
 }
 

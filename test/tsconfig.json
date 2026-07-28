@@ -1,17 +1,19 @@
 {
-  "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "target": "ES2024",
-    "lib": ["ES2024"],
-    "strict": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "rootDir": ".."
-  },
-  "include": ["src/*.ts", "index.ts", "test-client.ts"],
-  "exclude": ["node_modules"]
+    "compilerOptions": {
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "target": "ES2024",
+        "lib": ["ES2024"],
+        "strict": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "dist",
+        "rootDir": "..",
+        // The integ tests use jest globals; without this they only get typechecked by ts-jest at run time.
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "integration/**/*.ts", "index.ts", "test-client.ts", "workflows.ts"],
+    "exclude": ["node_modules"]
 }

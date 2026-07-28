@@ -29,9 +29,18 @@ export function createWorkerApp(): express.Express {
         res.send("iWF TypeScript worker is running");
     });
 
-    app.post(WorkerService.API_PATH_WORKFLOW_STATE_WAIT_UNTIL, handle((body) => worker.handleWorkflowStateWaitUntil(body)));
-    app.post(WorkerService.API_PATH_WORKFLOW_STATE_EXECUTE, handle((body) => worker.handleWorkflowStateExecute(body)));
-    app.post(WorkerService.API_PATH_WORKFLOW_WORKER_RPC, handle((body) => worker.handleWorkflowWorkerRpc(body)));
+    app.post(
+        WorkerService.API_PATH_WORKFLOW_STATE_WAIT_UNTIL,
+        handle((body) => worker.handleWorkflowStateWaitUntil(body)),
+    );
+    app.post(
+        WorkerService.API_PATH_WORKFLOW_STATE_EXECUTE,
+        handle((body) => worker.handleWorkflowStateExecute(body)),
+    );
+    app.post(
+        WorkerService.API_PATH_WORKFLOW_WORKER_RPC,
+        handle((body) => worker.handleWorkflowWorkerRpc(body)),
+    );
 
     return app;
 }
