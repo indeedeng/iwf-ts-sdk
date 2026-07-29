@@ -5,6 +5,8 @@ import { EmptyInputWorkflow } from "./src/basic/empty-input-workflow";
 import { MixOfWithWaitUntilAndSkipWaitUntilWorkflow } from "./src/basic/mix-of-with-wait-until-and-skip-wait-until-workflow";
 import { ModelInputWorkflow } from "./src/basic/model-input-workflow";
 import { ProceedOnStateStartFailWorkflow } from "./src/basic/proceed-on-state-start-fail-workflow";
+import { AnyCommandCombinationFailWorkflow } from "./src/anycommandcombination/any-command-combination-fail-workflow";
+import { SkipWaitUntilWorkflow } from "./src/basic/skip-wait-until-workflow";
 import { ConditionalCompleteWorkflow } from "./src/conditional/conditional-complete-workflow";
 import { ForceFailWorkflow } from "./src/forcefail/force-fail-workflow";
 import {
@@ -20,6 +22,8 @@ import { RpcLockingWorkflow } from "./src/rpc/rpc-locking-workflow";
 import { RpcMemoWorkflow } from "./src/rpc/rpc-memo-workflow";
 import { RpcWorkflow } from "./src/rpc/rpc-workflow";
 import { BasicSignalWorkflow } from "./src/signal/basic-signal-workflow";
+import { StateOptionsWorkflow } from "./src/stateoptions/state-options-workflow";
+import { StateOptionsOverrideWorkflow } from "./src/stateoptionsoverride/state-options-override-workflow";
 import {
     WorkflowBasicStateFail,
     WorkflowStateFailProceedToRecover,
@@ -27,6 +31,7 @@ import {
 } from "./src/stateapifail/workflow-basic-state-fail";
 import { StateApiTimeoutFailWorkflow } from "./src/stateapitimeout/state-api-timeout-fail-workflow";
 import { EmptyStateDecisionWorkflow } from "./src/statedecision/empty-state-decision-workflow";
+import { BasicTimerWorkflow } from "./src/timer/basic-timer-workflow";
 
 /**
  * Every workflow the integ worker serves, mirroring the Java suite's global
@@ -42,6 +47,7 @@ export function allWorkflows(): ObjectWorkflow[] {
         new MixOfWithWaitUntilAndSkipWaitUntilWorkflow(),
         new ModelInputWorkflow(),
         new ProceedOnStateStartFailWorkflow(),
+        new SkipWaitUntilWorkflow(),
 
         // persistence
         new BasicPersistenceWorkflow(),
@@ -69,6 +75,12 @@ export function allWorkflows(): ObjectWorkflow[] {
         new BasicInternalChannelWorkflow(),
         new ConditionalCompleteWorkflow(),
         new WaitingInternalChannelWorkflow(),
+
+        // commands / state options
+        new AnyCommandCombinationFailWorkflow(),
+        new BasicTimerWorkflow(),
+        new StateOptionsOverrideWorkflow(),
+        new StateOptionsWorkflow(),
     ];
 }
 
