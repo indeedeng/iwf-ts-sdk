@@ -10,6 +10,7 @@ import { BasicPersistenceWorkflow } from "./src/persistence/basic-persistence-wo
 import { SetDataAttributeWorkflow, SetSearchAttributeWorkflow } from "./src/persistence/set-attribute-workflows";
 import { DeadEndStateWorkflow } from "./src/rpc/dead-end-state-workflow";
 import { NoStateWorkflow } from "./src/rpc/no-state-workflow";
+import { RpcLockingWorkflow } from "./src/rpc/rpc-locking-workflow";
 import { RpcMemoWorkflow } from "./src/rpc/rpc-memo-workflow";
 import { RpcWorkflow } from "./src/rpc/rpc-workflow";
 import { BasicSignalWorkflow } from "./src/signal/basic-signal-workflow";
@@ -40,6 +41,7 @@ export function allWorkflows(): ObjectWorkflow[] {
         // rpc
         new DeadEndStateWorkflow(),
         new NoStateWorkflow(),
+        new RpcLockingWorkflow(),
         new RpcMemoWorkflow(),
         new RpcWorkflow(),
 
