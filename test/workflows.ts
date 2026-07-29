@@ -5,16 +5,26 @@ import { EmptyInputWorkflow } from "./src/basic/empty-input-workflow";
 import { MixOfWithWaitUntilAndSkipWaitUntilWorkflow } from "./src/basic/mix-of-with-wait-until-and-skip-wait-until-workflow";
 import { ModelInputWorkflow } from "./src/basic/model-input-workflow";
 import { ProceedOnStateStartFailWorkflow } from "./src/basic/proceed-on-state-start-fail-workflow";
+import { ConditionalCompleteWorkflow } from "./src/conditional/conditional-complete-workflow";
 import { ForceFailWorkflow } from "./src/forcefail/force-fail-workflow";
+import {
+    BasicInternalChannelWorkflow,
+    WaitingInternalChannelWorkflow,
+} from "./src/internalchannel/basic-internal-channel-workflow";
 import { BasicPersistenceWorkflow } from "./src/persistence/basic-persistence-workflow";
 import { SetDataAttributeWorkflow, SetSearchAttributeWorkflow } from "./src/persistence/set-attribute-workflows";
 import { DeadEndStateWorkflow } from "./src/rpc/dead-end-state-workflow";
+import { NoStartStateWorkflow } from "./src/rpc/no-start-state-workflow";
 import { NoStateWorkflow } from "./src/rpc/no-state-workflow";
 import { RpcLockingWorkflow } from "./src/rpc/rpc-locking-workflow";
 import { RpcMemoWorkflow } from "./src/rpc/rpc-memo-workflow";
 import { RpcWorkflow } from "./src/rpc/rpc-workflow";
 import { BasicSignalWorkflow } from "./src/signal/basic-signal-workflow";
-import { WorkflowBasicStateFail } from "./src/stateapifail/workflow-basic-state-fail";
+import {
+    WorkflowBasicStateFail,
+    WorkflowStateFailProceedToRecover,
+    WorkflowStateFailProceedToRecoverNoWaitUntil,
+} from "./src/stateapifail/workflow-basic-state-fail";
 import { StateApiTimeoutFailWorkflow } from "./src/stateapitimeout/state-api-timeout-fail-workflow";
 import { EmptyStateDecisionWorkflow } from "./src/statedecision/empty-state-decision-workflow";
 
@@ -40,6 +50,7 @@ export function allWorkflows(): ObjectWorkflow[] {
 
         // rpc
         new DeadEndStateWorkflow(),
+        new NoStartStateWorkflow(),
         new NoStateWorkflow(),
         new RpcLockingWorkflow(),
         new RpcMemoWorkflow(),
@@ -51,6 +62,13 @@ export function allWorkflows(): ObjectWorkflow[] {
         new ForceFailWorkflow(),
         new StateApiTimeoutFailWorkflow(),
         new WorkflowBasicStateFail(),
+        new WorkflowStateFailProceedToRecover(),
+        new WorkflowStateFailProceedToRecoverNoWaitUntil(),
+
+        // channels / conditional close
+        new BasicInternalChannelWorkflow(),
+        new ConditionalCompleteWorkflow(),
+        new WaitingInternalChannelWorkflow(),
     ];
 }
 
