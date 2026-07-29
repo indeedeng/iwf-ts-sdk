@@ -342,7 +342,7 @@ target a specific run.
 
 **Search** — `searchWorkflow(query, pageSize?, nextPageToken?)` — SQL-like query over search attributes, paginated.
 
-**State-execution completion** — `waitForStateExecutionCompletion<T>(workflowId, stateId, stateExecutionNumber)`
+**State-execution completion** — `waitForStateExecutionCompletion<T>(workflowId, stateId, stateExecutionNumber = 1)`
 and `waitForStateExecutionCompletionByKey<T>(workflowId, stateId, waitForKey)` (both long-poll and decode
 the output).
 
@@ -594,6 +594,13 @@ A third pass (full diff catalog, serialization included) then fixed the remainin
 - **Client API**: `publishToInternalChannelBatch`, a `waitForWorkflowCompletion` void alias, and
   permitting a workflow with no starting state (matches Java).
 
+### Resolved (AUTOPLAT-1900)
+- **Ergonomics — `waitForStateExecutionCompletion` now defaults `stateExecutionNumber` to 1**, matching
+  Java's two-argument overload (`Client.waitForStateExecutionCompletion(workflowId, stateClass)`), which
+  delegates with 1. Numbers below 1 (and non-integers) are now rejected with `InvalidArgumentError`:
+  they build a `stateId-N` that can never exist, so previously the caller just long-polled to a timeout.
+  Java has no such check — this is a TS-only guardrail, in the spirit of the others in §17.
+
 ### Resolved (AUTOPLAT-1934, AUTOPLAT-1935)
 Found while porting the Java integration suite (AUTOPLAT-1933), after the three audits below:
 - **Bug — `waitForStateExecutionCompletionByKey` omitted the state id.** It sent only `workflowId` and
@@ -693,7 +700,9 @@ stricter than, or not present in, the other SDKs — see §16.)
 - `triggerStateMovements` called outside an RPC.
 
 **Value guards** — `setSearchAttributeInt` rejects values outside JS safe-integer range (2^53−1);
-`setSearchAttributeDatetime` requires Unix epoch-seconds or an RFC3339 / Go-layout timestamp.
+`setSearchAttributeDatetime` requires Unix epoch-seconds or an RFC3339 / Go-layout timestamp;
+`waitForStateExecutionCompletion` rejects a `stateExecutionNumber` below 1 or non-integer (state
+executions count from 1, so those identify an execution that can never exist).
 
 ---
 
