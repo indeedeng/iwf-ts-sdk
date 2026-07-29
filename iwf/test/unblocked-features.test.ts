@@ -5,7 +5,7 @@ import { Client } from "../src/client";
 import { defaultObjectEncoder } from "../src/object-encoder";
 import { KeyValue, PersistenceLoadingType, SearchAttributeValueType, WorkflowConditionalCloseType, WorkflowStartRequest, WorkflowStatus } from "../../gen/iwfidl";
 import { UnregisteredClient } from "../src/unregistered-client";
-import { WorkflowUncompletedError } from "../src/errors";
+import { InvalidArgumentError, WorkflowUncompletedError } from "../src/errors";
 import { UnregisteredWorkflowOptionsBuilder } from "../src/unregistered-workflow-options";
 import { localDefaultClientOptions } from "../src/client-options";
 import { resetToBeginning } from "../src/workflow-operation-options";
@@ -317,6 +317,26 @@ describe("waitForStateExecutionCompletion request shape", () => {
             workflowId: "wf-1",
             stateExecutionId: "S1-2",
         });
+    });
+
+    it("defaults to the first state execution", async () => {
+        const { client, unregistered } = buildClient();
+        await client.waitForStateExecutionCompletion("wf-1", "S1");
+        // Matches Java's two-argument overload, which passes 1.
+        expect(unregistered.waitForStateCompletion.mock.calls[0][0]).toEqual({
+            workflowId: "wf-1",
+            stateExecutionId: "S1-1",
+        });
+    });
+
+    it.each([0, -1, 1.5])("rejects a state execution number of %p", async (stateExecutionNumber) => {
+        const { client, unregistered } = buildClient();
+        // State executions count from 1, so these could never resolve; fail loudly instead of
+        // long-polling for a state execution id that cannot exist.
+        await expect(client.waitForStateExecutionCompletion("wf-1", "S1", stateExecutionNumber)).rejects.toThrow(
+            InvalidArgumentError,
+        );
+        expect(unregistered.waitForStateCompletion).not.toHaveBeenCalled();
     });
 
     it("decodes the completed state output", async () => {

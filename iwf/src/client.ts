@@ -395,12 +395,23 @@ export class Client {
         await this.unregistered.publishToInternalChannel(workflowId, encoded, workflowRunId);
     }
 
-    /** Long-poll for the Nth execution of a state to complete; returns its decoded output. */
+    /**
+     * Long-poll for the Nth execution of a state to complete; returns its decoded output.
+     *
+     * `stateExecutionNumber` counts from 1 and defaults to the first execution, matching the Java
+     * SDK's two-argument overload. Numbers below 1 identify a state execution that can never exist,
+     * so they are rejected rather than left to time out.
+     */
     public async waitForStateExecutionCompletion<T = unknown>(
         workflowId: string,
         stateId: string,
-        stateExecutionNumber: number,
+        stateExecutionNumber = 1,
     ): Promise<T | undefined> {
+        if (!Number.isInteger(stateExecutionNumber) || stateExecutionNumber < 1) {
+            throw new InvalidArgumentError(
+                `stateExecutionNumber must be an integer of at least 1 (state executions count from 1), got ${stateExecutionNumber}`,
+            );
+        }
         const output = await this.unregistered.waitForStateCompletion({
             workflowId,
             stateExecutionId: `${stateId}-${stateExecutionNumber}`,
