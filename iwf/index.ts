@@ -85,6 +85,7 @@ export type {
     RetryPolicy,
     WorkflowRetryPolicy,
     WorkflowConfig,
+    WorkflowAlreadyStartedOptions,
 } from "../gen/iwfidl";
 
 export {
