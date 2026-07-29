@@ -71,9 +71,13 @@ services:
     container_name: iwf-server
     image: iworkflowio/iwf-server:latest # NOTE: you can pin a version tag like v1.0.0-RC6
     environment:
-      # Rewrite worker urls of "localhost"/"127.0.0.1" to the docker bridge gateway so the
-      # dockerized server can reach a worker running on the host (the CI/dev machine).
-      - AUTO_FIX_WORKER_URL=172.17.0.1
+      # Rewrite worker urls of "localhost"/"127.0.0.1" so the dockerized server can reach a worker
+      # running on the host (the CI/dev machine). host.docker.internal + the host-gateway alias below
+      # works on both Docker Desktop (macOS) and Linux docker 20.10+; the old hardcoded 172.17.0.1 is
+      # the Linux docker0 address and is unreachable from macOS. Override if your setup differs.
+      - AUTO_FIX_WORKER_URL=${AUTO_FIX_WORKER_URL:-host.docker.internal}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - temporal-network
     ports:

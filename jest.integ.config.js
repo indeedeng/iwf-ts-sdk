@@ -6,5 +6,6 @@ module.exports = {
     testEnvironment: "node",
     roots: ["<rootDir>/test"],
     testMatch: ["**/*.integ.test.ts"],
-    testTimeout: 60000,
+    // Some ported tests wait out a workflow/state timeout (~10s each), so 60s is too tight.
+    testTimeout: 120000,
 };

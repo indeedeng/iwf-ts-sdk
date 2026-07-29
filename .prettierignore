@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+iwf/dist
+iwf/node_modules
+test/dist
+test/node_modules
+
+# Generated from iwf-idl by `npm run code-gen` — never hand-format.
+gen
+iwf-idl
+
+package-lock.json
