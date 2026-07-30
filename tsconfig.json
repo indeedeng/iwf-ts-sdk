@@ -12,6 +12,7 @@
         "declaration": true,
         "sourceMap": true,
         "resolveJsonModule": true,
+        "rootDir": ".",
         "outDir": "dist"
     },
     "include": ["iwf/**/*.ts", "gen/**/*.ts"],
