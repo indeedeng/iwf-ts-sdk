@@ -55,7 +55,7 @@ export class WorkflowStateOptions {
             waitUntilApiFailurePolicy: this.waitUntilApiFailurePolicy,
             executeApiFailurePolicy: this.executeApiFailureProceedStateId !== undefined
                 ? ExecuteApiFailurePolicy.ProceedToConfiguredState
-                : ExecuteApiFailurePolicy.FailWorkflowOnExecuteApiFailure,
+                : undefined,
             executeApiFailureProceedStateId: this.executeApiFailureProceedStateId,
             executeApiFailureProceedStateOptions: this.executeApiFailureProceedStateOptions?.toIdl(),
             skipWaitUntil: this.skipWaitUntil,
