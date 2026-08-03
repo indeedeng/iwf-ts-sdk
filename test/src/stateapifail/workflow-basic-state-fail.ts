@@ -3,7 +3,6 @@ import {
     CommandResults,
     Communication,
     Context,
-    ExecuteApiFailurePolicy,
     ObjectWorkflow,
     Persistence,
     StateDecision,
@@ -58,7 +57,6 @@ export class WorkflowBasicStateFail implements ObjectWorkflow {
 /** Options for a failing state that hands off to `recoverStateId` once its retries are exhausted. */
 function proceedToRecoverOptions(recoverStateId: string): WorkflowStateOptions {
     const options = new WorkflowStateOptions();
-    options.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
     options.executeApiFailureProceedStateId = recoverStateId;
     options.executeApiRetryPolicy = { maximumAttempts: 1, backoffCoefficient: 2 };
     return options;

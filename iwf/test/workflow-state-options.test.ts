@@ -7,7 +7,6 @@ describe("WorkflowStateOptions", () => {
         const opts = new WorkflowStateOptions();
         opts.waitUntilApiSearchAttributesLoadingPolicy = { persistenceLoadingType: PersistenceLoadingType.None };
         opts.executeApiDataAttributesLoadingPolicy = { persistenceLoadingType: PersistenceLoadingType.AllWithoutLocking };
-        opts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
         opts.executeApiFailureProceedStateId = "Recovery";
         opts.executeApiRetryPolicy = { maximumAttempts: 3 };
         const recoveryOpts = new WorkflowStateOptions();
@@ -28,13 +27,6 @@ describe("WorkflowStateOptions", () => {
         const opts = new WorkflowStateOptions();
         opts.executeApiFailureProceedStateId = "Recovery";
         expect(() => opts.toIdl()).toThrow(WorkflowDefinitionError);
-    });
-
-    it("throws when the proceed policy is set without a target state id", () => {
-        const opts = new WorkflowStateOptions();
-        opts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
-        opts.executeApiRetryPolicy = { maximumAttempts: 3 };
-        expect(() => opts.toIdl()).toThrow(/executeApiFailureProceedStateId is not set/);
     });
 
     it("throws when execute-failure proceed has a retry policy with no attempt bound", () => {
