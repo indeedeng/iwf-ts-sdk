@@ -268,18 +268,23 @@ per-movement override on `StateMovement`). It calls `.toIdl()` at mapping time, 
 - **WaitUntil API**: `waitUntilApiTimeoutSeconds`, `waitUntilApiRetryPolicy`, `waitUntilApiFailurePolicy`
   (`PROCEED_ON_FAILURE` continues to execute when retries are exhausted — SAGA-style),
   `waitUntilApiSearchAttributesLoadingPolicy` / `waitUntilApiDataAttributesLoadingPolicy`.
-- **Execute API**: `executeApiTimeoutSeconds`, `executeApiRetryPolicy`, and **execute-failure recovery** —
-  `executeApiFailurePolicy = PROCEED_TO_CONFIGURED_STATE` with `executeApiFailureProceedStateId`
-  (+ optional `executeApiFailureProceedStateOptions`) routes to a recovery state when execute retries
-  are exhausted; `executeApiSearchAttributesLoadingPolicy` / `executeApiDataAttributesLoadingPolicy`.
+- **Execute API**: `executeApiTimeoutSeconds`, `executeApiRetryPolicy`,
+  `executeApiSearchAttributesLoadingPolicy` / `executeApiDataAttributesLoadingPolicy`, and
+  **execute-failure recovery** — setting `executeApiFailureProceedStateId` (+ optional
+  `executeApiFailureProceedStateOptions`) routes to a recovery state when execute retries are exhausted.
+  There is no user-settable failure policy: the proceed-state id is the single knob, and `toIdl()` emits
+  the IDL `executeApiFailurePolicy = PROCEED_TO_CONFIGURED_STATE` when it is set, leaving the policy unset
+  otherwise (server default: fail the workflow). This mirrors the Java SDK, where the policy follows from
+  the configured proceed-state rather than being set independently.
 - **Combined loading policies**: `searchAttributesLoadingPolicy` / `dataAttributesLoadingPolicy` apply to both APIs.
 
 **`RetryPolicy`** fields: `initialIntervalSeconds`, `backoffCoefficient`, `maximumIntervalSeconds`,
 `maximumAttempts`, `maximumAttemptsDurationSeconds`.
 
-Validation: a proceed policy (waitUntil or execute) requires a retry policy with a bounded number of
-attempts; the recovery state needs a target id and may not itself declare a proceed policy. The SDK
-also auto-fills the recovery state's `skipWaitUntil`. Per-movement overrides take precedence over a
+Validation: proceeding on failure — waitUntil `PROCEED_ON_FAILURE`, or an execute-failure proceed state —
+requires a retry policy with a bounded number of attempts, since the proceed path is only reached once
+retries are exhausted. A recovery state may not itself declare an execute-failure proceed state (no
+nesting), and the SDK auto-fills its `skipWaitUntil`. Per-movement overrides take precedence over a
 state's declared `getStateOptions()`.
 
 ---
@@ -541,9 +546,13 @@ remains is the ergonomic layer (intentional, idiomatic differences) plus one min
 ### Resolved (AUTOPLAT-1847)
 - **Worker RPC callback path** (bug) — was `/api/v1/workflowWorkerRPC`; corrected to
   `/api/v1/workflowWorker/rpc` to match the IDL spec and Java, so the server's RPC callback routes.
-- **Execute-failure recovery state** — `WorkflowStateOptions` now has `executeApiFailurePolicy` /
+- **Execute-failure recovery state** — `WorkflowStateOptions` now has ~~`executeApiFailurePolicy`~~ /
   `executeApiFailureProceedStateId` / `executeApiFailureProceedStateOptions`, emitted in `toIdl`, with
   validation that a proceed-state requires a target ID and an execute retry policy.
+  (Superseded in part — `executeApiFailurePolicy` is no longer a field; the policy is derived from the
+  proceed-state id, which in turn retired the target-ID check as unreachable. A target ID is still what
+  configures recovery, and the retry-policy requirement still stands. See
+  [Resolved (AUTOPLAT-1940)](#resolved-autoplat-1940).)
 - **Per-API persistence loading policies** — the four waitUntil/execute-specific SA+DA loading-policy
   fields are now exposed and emitted.
 - **`useMemoForDataAttributes` on start and on data-attribute reads** — set from the workflow's
@@ -619,6 +628,20 @@ Found while porting the Java integration suite (AUTOPLAT-1933), after the three 
   builds the full declared key-type list there, since the server needs the types to decode, so
   sending all declared keys is the correct behavior.)
 
+### Resolved (AUTOPLAT-1940)
+- **Execute-failure policy is now derived, not user-settable.** `WorkflowStateOptions.executeApiFailurePolicy`
+  was removed from the SDK's public surface. `toIdl()` emits the IDL
+  `executeApiFailurePolicy = PROCEED_TO_CONFIGURED_STATE` whenever `executeApiFailureProceedStateId` is set
+  and leaves it unset otherwise (server default: fail the workflow), so the recovery API is a single knob —
+  matching the Java SDK, where the policy follows from the configured proceed-state. This also removes a
+  class of misconfiguration the SDK previously had to validate against (policy without a target state, or
+  target state without the policy), so that check is gone; the remaining execute-side rule is that
+  `executeApiFailureProceedStateId` requires an `executeApiRetryPolicy` with an attempt bound. The
+  no-nesting rejection on recovery states is unchanged. **Breaking change** for callers that set
+  `executeApiFailurePolicy` explicitly: drop the assignment — setting only the proceed-state id produces
+  the same wire request. The `ExecuteApiFailurePolicy` enum stays re-exported from `iwf/index.ts`, since it
+  still appears on the generated IDL type.
+
 ### Not applicable by design
 - **Data-attribute value-type validation** — data-attribute defs carry no declared type (TS uses the
   `ObjectEncoder`, not `Class<T>`), so there is no value type to validate. Key/prefix validation *is* enforced.
@@ -685,7 +708,7 @@ stricter than, or not present in, the other SDKs — see §16.)
 - a movement to an **unregistered, non-system** state id;
 - `forAnyCommandCombinationCompleted` referencing a command id not present in the request;
 - an empty/`null` `StateDecision` returned from `execute`;
-- an execute-failure proceed policy without a target state id and a **bounded** retry policy
+- an `executeApiFailureProceedStateId` without a **bounded** execute retry policy
   (`maximumAttempts`/`maximumAttemptsDurationSeconds`); same bound required for a `waitUntil`
   `PROCEED_ON_FAILURE` policy;
 - a recovery (proceed) state that itself declares an execute-failure proceed policy (no nesting);
