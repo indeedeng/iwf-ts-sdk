@@ -5,7 +5,6 @@ import { WorkflowStateOptions } from "../src/workflow-state-options";
 import { CommandRequest } from "../src/command-request";
 import { StateDecision } from "../src/state-decision";
 import { defaultObjectEncoder } from "../src/object-encoder";
-import { ExecuteApiFailurePolicy } from "../../gen/iwfidl";
 import { WorkflowDefinitionError } from "../src/errors";
 
 /** Build a WorkflowState; pass hasWaitUntil=true so it is NOT skip-waitUntil. */
@@ -60,7 +59,6 @@ describe("StateMovementMapper option resolution", () => {
 
     it("auto-fills the execute-failure recovery state's skipWaitUntil", () => {
         const mainOpts = new WorkflowStateOptions();
-        mainOpts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
         mainOpts.executeApiFailureProceedStateId = "Recovery";
         mainOpts.executeApiRetryPolicy = { maximumAttempts: 3 };
         const main = makeState("Main", mainOpts, true);
@@ -73,13 +71,11 @@ describe("StateMovementMapper option resolution", () => {
 
     it("rejects a recovery state that itself declares an execute-failure proceed policy", () => {
         const mainOpts = new WorkflowStateOptions();
-        mainOpts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
         mainOpts.executeApiFailureProceedStateId = "Recovery";
         mainOpts.executeApiRetryPolicy = { maximumAttempts: 3 };
         const main = makeState("Main", mainOpts, true);
 
         const recoveryOpts = new WorkflowStateOptions();
-        recoveryOpts.executeApiFailurePolicy = ExecuteApiFailurePolicy.ProceedToConfiguredState;
         recoveryOpts.executeApiFailureProceedStateId = "R2";
         recoveryOpts.executeApiRetryPolicy = { maximumAttempts: 1 };
         const recovery = makeState("Recovery", recoveryOpts, true);

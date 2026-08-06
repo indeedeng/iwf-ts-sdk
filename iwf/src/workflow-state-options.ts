@@ -28,12 +28,6 @@ export class WorkflowStateOptions {
     public waitUntilApiRetryPolicy?: RetryPolicy;
     public executeApiRetryPolicy?: RetryPolicy;
     public waitUntilApiFailurePolicy?: WaitUntilApiFailurePolicy;
-    /**
-     * What to do when the execute API exhausts its retries. Defaults (server-side) to failing the
-     * workflow. Set to {@link ExecuteApiFailurePolicy.ProceedToConfiguredState} together with
-     * {@link executeApiFailureProceedStateId} to route to a recovery state instead (SAGA-style).
-     */
-    public executeApiFailurePolicy?: ExecuteApiFailurePolicy;
     /** State to proceed to when execute retries are exhausted (requires a proceed failure policy). */
     public executeApiFailureProceedStateId?: string;
     /** State options for the recovery state proceeded to on execute failure. */
@@ -59,7 +53,9 @@ export class WorkflowStateOptions {
             waitUntilApiRetryPolicy: this.waitUntilApiRetryPolicy,
             executeApiRetryPolicy: this.executeApiRetryPolicy,
             waitUntilApiFailurePolicy: this.waitUntilApiFailurePolicy,
-            executeApiFailurePolicy: this.executeApiFailurePolicy,
+            executeApiFailurePolicy: this.executeApiFailureProceedStateId !== undefined
+                ? ExecuteApiFailurePolicy.ProceedToConfiguredState
+                : undefined,
             executeApiFailureProceedStateId: this.executeApiFailureProceedStateId,
             executeApiFailureProceedStateOptions: this.executeApiFailureProceedStateOptions?.toIdl(),
             skipWaitUntil: this.skipWaitUntil,
@@ -72,28 +68,19 @@ export class WorkflowStateOptions {
      * the execute side additionally requires the recovery state id.
      */
     private validate(): void {
-        const executeProceeding =
-            this.executeApiFailurePolicy === ExecuteApiFailurePolicy.ProceedToConfiguredState ||
-            this.executeApiFailureProceedStateId !== undefined;
-        if (executeProceeding) {
-            if (this.executeApiFailureProceedStateId === undefined) {
-                throw new WorkflowDefinitionError(
-                    "executeApiFailurePolicy is PROCEED_TO_CONFIGURED_STATE but executeApiFailureProceedStateId is not set",
-                );
-            }
-            if (!WorkflowStateOptions.hasBoundedRetry(this.executeApiRetryPolicy)) {
-                throw new WorkflowDefinitionError(
-                    "executeApiFailureProceedStateId requires an executeApiRetryPolicy with maximumAttempts or " +
-                        "maximumAttemptsDurationSeconds (the proceed-state is only reached after retries are exhausted)",
-                );
-            }
+        if (this.executeApiFailureProceedStateId !== undefined && !WorkflowStateOptions.hasBoundedRetry(this.executeApiRetryPolicy)) {
+            throw new WorkflowDefinitionError(
+                "executeApiFailureProceedStateId requires an executeApiRetryPolicy with maximumAttempts or " +
+                "maximumAttemptsDurationSeconds (the proceed-state is only reached after retries are exhausted)",
+            );
         }
+
 
         if (this.waitUntilApiFailurePolicy === WaitUntilApiFailurePolicy.ProceedOnFailure) {
             if (!WorkflowStateOptions.hasBoundedRetry(this.waitUntilApiRetryPolicy)) {
                 throw new WorkflowDefinitionError(
                     "waitUntilApiFailurePolicy PROCEED_ON_FAILURE requires a waitUntilApiRetryPolicy with " +
-                        "maximumAttempts or maximumAttemptsDurationSeconds",
+                    "maximumAttempts or maximumAttemptsDurationSeconds",
                 );
             }
         }

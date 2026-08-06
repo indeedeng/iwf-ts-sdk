@@ -131,8 +131,8 @@ wait-for-state-completion, wait-for-key tagging, and atomic channel-empty condit
 all implemented. Note: upstream `iwf-idl` HEAD (`1.0.0-125`) currently fails OpenAPI validation
 (a malformed `encodedobject/load` path), which is why we pin `1.0.0-121` rather than HEAD.
 
-Still not exposed: in-state channel-size queries (`getInternalChannelSize`) and a client wrapper
-for `triggerContinueAsNew` (the endpoint exists in the generated client but isn't wrapped yet).
+Still not exposed: a client wrapper for `triggerContinueAsNew` (the endpoint exists in the generated
+client but isn't wrapped yet).
 
 ## Development
 
