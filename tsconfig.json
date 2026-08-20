@@ -1,10 +1,20 @@
 {
     "compilerOptions": {
-        "target": "ES2015",
-        "composite": true,
-        "incremental": true,
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "sourceMap": true
-    }
+        "target": "ES2024",
+        "lib": ["ES2024"],
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "strict": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "declaration": true,
+        "sourceMap": true,
+        "resolveJsonModule": true,
+        "rootDir": ".",
+        "outDir": "dist"
+    },
+    "include": ["iwf/**/*.ts", "gen/**/*.ts"],
+    "exclude": ["node_modules", "dist", "test", "iwf/test"]
 }
