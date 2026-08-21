@@ -54,8 +54,15 @@ class GreetState implements WorkflowState {
 
 class GreetWorkflow implements ObjectWorkflow {
   getWorkflowType() { return "greet"; }
+
   getWorkflowStates(): StateDef[] {
     return [StateDef.startingState(new GreetState())];
+  }
+
+  // Every data attribute a state reads or writes must be declared here, or the
+  // get/setDataAttribute call throws InvalidArgumentError.
+  getPersistenceSchema(): PersistenceFieldDef[] {
+    return [PersistenceFieldDef.dataAttributeDef("greeted")];
   }
 }
 ```
@@ -66,37 +73,52 @@ class GreetWorkflow implements ObjectWorkflow {
 Wire them to any HTTP server (the `test/` folder has a complete Express example).
 
 ```ts
-import express from "express";
+import express, { Request, Response } from "express";
 import { Registry, WorkerService } from "iwf-ts-sdk";
 
-const registry = new Registry();
+export const registry = new Registry();
 registry.addWorkflow(new GreetWorkflow());
 const worker = new WorkerService(registry);
 
+// Always catch: the handlers reject when your workflow code throws, and `toErrorResponse`
+// puts the cause where the iWF server can surface it in the workflow's error message.
+// Letting the rejection escape instead loses that message, whatever your framework does with it.
+const handle = <T>(fn: (body: T) => Promise<unknown>) =>
+  async (req: Request, res: Response) => {
+    try {
+      res.json(await fn(req.body));
+    } catch (e) {
+      res.status(WorkerService.ERROR_STATUS_CODE).json(WorkerService.toErrorResponse(e));
+    }
+  };
+
 const app = express().use(express.json());
-app.post(WorkerService.API_PATH_WORKFLOW_STATE_WAIT_UNTIL, async (req, res) =>
-  res.json(await worker.handleWorkflowStateWaitUntil(req.body)));
-app.post(WorkerService.API_PATH_WORKFLOW_STATE_EXECUTE, async (req, res) =>
-  res.json(await worker.handleWorkflowStateExecute(req.body)));
-app.post(WorkerService.API_PATH_WORKFLOW_WORKER_RPC, async (req, res) =>
-  res.json(await worker.handleWorkflowWorkerRpc(req.body)));
+app.post(WorkerService.API_PATH_WORKFLOW_STATE_WAIT_UNTIL,
+  handle(worker.handleWorkflowStateWaitUntil.bind(worker)));
+app.post(WorkerService.API_PATH_WORKFLOW_STATE_EXECUTE,
+  handle(worker.handleWorkflowStateExecute.bind(worker)));
+app.post(WorkerService.API_PATH_WORKFLOW_WORKER_RPC,
+  handle(worker.handleWorkflowWorkerRpc.bind(worker)));
 app.listen(8802);
 ```
 
 ## Client
 
+The client resolves workflow types through the same `Registry` the worker uses, so share one
+instance between them:
+
 ```ts
 import { Client, Registry } from "iwf-ts-sdk";
 
-const registry = new Registry();
 const workflow = new GreetWorkflow();
 registry.addWorkflow(workflow);
 
 const client = new Client(registry, {
-  serverUrl: "http://localhost:8801",
-  workerUrl: "http://localhost:8802",
+  serverUrl: "http://localhost:8801",  // the iWF server
+  workerUrl: "http://localhost:8802",  // where the server calls your worker back
 });
 
+// startWorkflow(workflow, workflowId, timeoutSeconds, input?)
 await client.startWorkflow(workflow, "wf-id-1", 3600, "world");
 const result = await client.getSimpleWorkflowResult<string>("wf-id-1"); // "hello world"
 ```

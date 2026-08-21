@@ -6,14 +6,13 @@ import { createRegistry } from "./workflows";
 export const DEFAULT_WORKER_PORT = 8802;
 
 // Wrap a worker handler so thrown errors become a worker error response the server understands.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function handle(fn: (body: any) => Promise<unknown>) {
+// T is inferred from the bound handler's request type, so req.body arrives correctly typed.
+function handle<T>(fn: (body: T) => Promise<unknown>) {
     return async (req: Request, res: Response) => {
         try {
             res.json(await fn(req.body));
         } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            res.status(500).json({ detail: message, errorType: "WORKER_EXECUTION_ERROR" });
+            res.status(WorkerService.ERROR_STATUS_CODE).json(WorkerService.toErrorResponse(e));
         }
     };
 }
@@ -31,15 +30,15 @@ export function createWorkerApp(): express.Express {
 
     app.post(
         WorkerService.API_PATH_WORKFLOW_STATE_WAIT_UNTIL,
-        handle((body) => worker.handleWorkflowStateWaitUntil(body)),
+        handle(worker.handleWorkflowStateWaitUntil.bind(worker)),
     );
     app.post(
         WorkerService.API_PATH_WORKFLOW_STATE_EXECUTE,
-        handle((body) => worker.handleWorkflowStateExecute(body)),
+        handle(worker.handleWorkflowStateExecute.bind(worker)),
     );
     app.post(
         WorkerService.API_PATH_WORKFLOW_WORKER_RPC,
-        handle((body) => worker.handleWorkflowWorkerRpc(body)),
+        handle(worker.handleWorkflowWorkerRpc.bind(worker)),
     );
 
     return app;

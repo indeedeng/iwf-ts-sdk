@@ -81,6 +81,7 @@ export {
 export type {
     EncodedObject,
     SearchAttribute,
+    WorkerErrorResponse,
     PersistenceLoadingPolicy,
     RetryPolicy,
     WorkflowRetryPolicy,

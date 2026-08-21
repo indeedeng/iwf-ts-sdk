@@ -1,6 +1,7 @@
 import {
     KeyValue,
     SearchAttribute,
+    WorkerErrorResponse,
     WorkflowStateExecuteRequest,
     WorkflowStateExecuteResponse,
     WorkflowStateWaitUntilRequest,
@@ -38,6 +39,28 @@ export class WorkerService {
     public static readonly API_PATH_WORKFLOW_STATE_WAIT_UNTIL = "/api/v1/workflowState/start";
     public static readonly API_PATH_WORKFLOW_STATE_EXECUTE = "/api/v1/workflowState/decide";
     public static readonly API_PATH_WORKFLOW_WORKER_RPC = "/api/v1/workflowWorker/rpc";
+
+    /** The `errorType` reported when a state or RPC throws. */
+    public static readonly WORKER_EXECUTION_ERROR_TYPE = "WORKER_EXECUTION_ERROR";
+
+    /** The HTTP status a worker error response should be sent with. */
+    public static readonly ERROR_STATUS_CODE = 500;
+
+    /**
+     * Convert an error thrown by a handler into the response body the iWF server expects.
+     *
+     * The three handler methods reject when user workflow code throws. Every HTTP integration must
+     * catch that and reply with this body and {@link ERROR_STATUS_CODE} — the server puts `detail`
+     * into the workflow's error message, so replying with a bare 500 loses the cause and leaves
+     * callers debugging a generic "Internal Server Error". The server classifies the failure itself
+     * (as `STATE_API_FAIL_ERROR_TYPE`) and applies the state's retry policy either way.
+     */
+    public static toErrorResponse(e: unknown): WorkerErrorResponse {
+        return {
+            detail: e instanceof Error ? e.message : String(e),
+            errorType: WorkerService.WORKER_EXECUTION_ERROR_TYPE,
+        };
+    }
 
     private readonly registry: Registry;
     private readonly encoder: ObjectEncoder;
