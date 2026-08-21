@@ -70,7 +70,9 @@ class GreetWorkflow implements ObjectWorkflow {
 ## Worker
 
 `WorkerService` is framework-agnostic: it exposes three handlers the iWF server calls back into.
-Wire them to any HTTP server (the `test/` folder has a complete Express example).
+Wire them to any HTTP server (the `test/` folder has a complete Express example). Their wire types
+(`WorkflowState{WaitUntil,Execute}{Request,Response}`, `WorkflowWorkerRpc{Request,Response}`) are
+exported if you need to name them in your own adapter.
 
 ```ts
 import express, { Request, Response } from "express";

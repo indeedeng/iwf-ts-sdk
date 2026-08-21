@@ -81,12 +81,24 @@ export {
 export type {
     EncodedObject,
     SearchAttribute,
-    WorkerErrorResponse,
     PersistenceLoadingPolicy,
     RetryPolicy,
     WorkflowRetryPolicy,
     WorkflowConfig,
     WorkflowAlreadyStartedOptions,
+} from "../gen/iwfidl";
+
+// The wire types of the three WorkerService callbacks, for writing typed HTTP adapters.
+// Note: the IDL's own WorkflowStateOptions is deliberately not re-exported here — the SDK's
+// WorkflowStateOptions class above is the one workflow code should use.
+export type {
+    WorkerErrorResponse,
+    WorkflowStateWaitUntilRequest,
+    WorkflowStateWaitUntilResponse,
+    WorkflowStateExecuteRequest,
+    WorkflowStateExecuteResponse,
+    WorkflowWorkerRpcRequest,
+    WorkflowWorkerRpcResponse,
 } from "../gen/iwfidl";
 
 export {
