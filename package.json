@@ -1,6 +1,6 @@
 {
     "name": "iwf-ts-sdk",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "TypeScript SDK for the iWF workflow engine",
     "main": "dist/iwf/index.js",
     "types": "dist/iwf/index.d.ts",

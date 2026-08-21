@@ -213,3 +213,49 @@ describe("WorkerService", () => {
         expect(defaultObjectEncoder.decode(res.output)).toEqual({ internal: 3, signal: 5 });
     });
 });
+
+describe("WorkerService.toErrorResponse", () => {
+    it("carries the thrown Error's message as detail", () => {
+        expect(WorkerService.toErrorResponse(new Error("test api failing"))).toEqual({
+            detail: "test api failing",
+            errorType: "WORKER_EXECUTION_ERROR",
+        });
+    });
+
+    it("stringifies non-Error throws", () => {
+        expect(WorkerService.toErrorResponse("boom").detail).toBe("boom");
+        expect(WorkerService.toErrorResponse(undefined).detail).toBe("undefined");
+    });
+
+    it("maps a rejected handler into a response the server can read", async () => {
+        // The failure users actually hit: a state writes a data attribute it never declared.
+        const registry = new Registry();
+        registry.addWorkflow({
+            getWorkflowType: () => "undeclared",
+            getWorkflowStates: () => [
+                StateDef.startingState({
+                    get stateId() {
+                        return "S1";
+                    },
+                    execute: (_c, _i, _r, p: Persistence) => {
+                        p.setDataAttribute("nope", true);
+                        return StateDecision.gracefulCompleteWorkflow();
+                    },
+                }),
+            ],
+        });
+
+        const err = await new WorkerService(registry)
+            .handleWorkflowStateExecute({
+                context: idlContext,
+                workflowType: "undeclared",
+                workflowStateId: "S1",
+                commandResults: {},
+            })
+            .catch((e) => e);
+
+        expect(WorkerService.toErrorResponse(err).detail).toContain(
+            "Data attribute nope is not declared",
+        );
+    });
+});
