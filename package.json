@@ -1,12 +1,15 @@
 {
-    "name": "iwf-typescript-sdk",
-    "private": true,
-    "version": "1.0.0-beta.1",
+    "name": "iwf-ts-sdk",
+    "version": "1.0.0",
+    "description": "TypeScript SDK for the iWF workflow engine",
     "main": "dist/iwf/index.js",
     "types": "dist/iwf/index.d.ts",
     "files": [
         "dist"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "keywords": [
         "iwf",
         "workflow"
@@ -21,9 +24,6 @@
     },
     "license": "MIT",
     "author": "Indeed Engineering",
-    "directories": {
-        "doc": "docs"
-    },
     "scripts": {
         "code-gen": "./scripts/idl-code-gen.sh",
         "build": "tsc",
@@ -36,9 +36,8 @@
         "lint:fix": "eslint . --fix --ext .ts",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "prepare": "npm run build",
-        "preversion": "npm run lint && npm run test:ci",
-        "version": "npm run build && git add -A dist"
+        "prepublishOnly": "npm run build",
+        "preversion": "npm run lint && npm run test:ci"
     },
     "devDependencies": {
         "@openapitools/openapi-generator-cli": "^2.38.0",
