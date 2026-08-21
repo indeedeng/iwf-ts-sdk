@@ -1,0 +1,57 @@
+name: Release
+
+# Publishes to npm when a version tag is pushed. Bump with `npm version <patch|minor|major>`,
+# then `git push --follow-tags` — the tag push is what triggers this.
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    publish:
+        name: "Publish to npm"
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            # Required for npm Trusted Publishing: npm exchanges this OIDC token for
+            # short-lived publish credentials, so no NPM_TOKEN secret is needed.
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: ".nvmrc"
+                  cache: "npm"
+                  registry-url: "https://registry.npmjs.org"
+
+            # Trusted Publishing requires npm >= 11.5.1; the npm bundled with the
+            # runner's Node can lag behind that.
+            - name: Ensure npm supports trusted publishing
+              run: npm install -g npm@latest
+
+            - name: Verify tag matches package.json version
+              run: |
+                  tag="${GITHUB_REF_NAME#v}"
+                  pkg="$(node -p "require('./package.json').version")"
+                  if [ "$tag" != "$pkg" ]; then
+                    echo "::error::tag $GITHUB_REF_NAME does not match package.json version $pkg" >&2
+                    exit 1
+                  fi
+                  echo "Publishing $pkg"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Typecheck
+              run: npm run typecheck
+
+            - name: Unit tests
+              run: npm run test:ci
+
+            # `prepublishOnly` compiles dist/ before the tarball is packed.
+            - name: Publish
+              run: npm publish

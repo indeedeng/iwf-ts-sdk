@@ -9,28 +9,18 @@ TypeScript SDK for the [iWF workflow engine](https://github.com/indeedeng/iwf).
 
 ## Install
 
-Not yet published to npm. Install from GitHub, pinned to a tag:
-
 ```bash
-npm install github:indeedeng/iwf-ts-sdk#v1.0.0-beta.1
+npm install iwf-ts-sdk
 ```
 
-The package's `prepare` script compiles `dist/` during install, so the tarball npm builds
-from the git clone contains the emitted JS and `.d.ts` files. This makes the install slower
-than a normal npm package — it resolves the full devDependency tree (including
-`@openapitools/openapi-generator-cli`) in npm's temp clone to run `tsc`. Pin a tag rather
-than a branch so builds are reproducible.
-
-Then import from the package name:
-
 ```ts
-import { Client, Registry } from "iwf-typescript-sdk";
+import { Client, Registry } from "iwf-ts-sdk";
 ```
 
 ## Develop on this SDK
 
 ```bash
-npm install        # also runs `prepare` -> compiles to dist/
+npm install        # install dependencies
 npm run build      # compile to dist/
 npm run typecheck  # type-check without emitting
 npm test           # run the unit tests (jest + ts-jest)
@@ -50,7 +40,7 @@ Implement two interfaces to define a workflow:
 import {
   ObjectWorkflow, WorkflowState, StateDef, StateDecision,
   CommandRequest, TimerCommand, Context, Persistence, Communication, CommandResults,
-} from "iwf-typescript-sdk";
+} from "iwf-ts-sdk";
 
 class GreetState implements WorkflowState {
   get stateId() { return "greet"; }
@@ -77,7 +67,7 @@ Wire them to any HTTP server (the `test/` folder has a complete Express example)
 
 ```ts
 import express from "express";
-import { Registry, WorkerService } from "iwf-typescript-sdk";
+import { Registry, WorkerService } from "iwf-ts-sdk";
 
 const registry = new Registry();
 registry.addWorkflow(new GreetWorkflow());
@@ -96,7 +86,7 @@ app.listen(8802);
 ## Client
 
 ```ts
-import { Client, Registry } from "iwf-typescript-sdk";
+import { Client, Registry } from "iwf-ts-sdk";
 
 const registry = new Registry();
 const workflow = new GreetWorkflow();
